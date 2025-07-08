@@ -13,7 +13,7 @@ font-size: 11px;
 <table width="100%" border="0" cellspacing="2" cellpadding="2">
 <tr valign="top">
 <td valign=top>
-<p><b>Update for Case ${case.caseNumber} - "${case.title}"</b>
+<p><b>Case ${case.caseNumber} - "${case.title}"</b>
 <#if (case.externalMessages?size > 0)>
 <p>${case.externalMessages?first.message}<br>${preferences.MESSAGE_SIGNATURE}</p>
 </#if>
