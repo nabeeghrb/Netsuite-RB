@@ -1,0 +1,57 @@
+ 
+<html><head><title>Case Update Notification</title>
+<style>
+<!--
+body, p, td {
+font-family: Verdana, Arial, Helvetica, sans-serif;
+font-size: 11px;
+}
+-->
+</style>
+</head>
+<body>
+<table width="100%" border="0" cellspacing="2" cellpadding="2">
+<tr valign="top">
+<td valign=top>
+<p><b>Update for Case ${case.caseNumber} - "${case.title}"</b>
+<#if (case.externalMessages?size > 0)>
+<p>${case.externalMessages?first.message}<br>${preferences.MESSAGE_SIGNATURE}</p>
+</#if>
+</td>
+</tr>
+</table>
+<hr width="100%" size="1" noshade color="#CCCCCC">
+<blockquote>
+<p>
+<b>Message History</b><br>
+<font color="#666666">
+<#assign decoratedMessage = "">
+<#assign remainingMessages = 0>
+<#assign warningMessage = "">
+<#list case.externalMessages as message>
+<#assign decoratedMessage = decoratedMessage + "-----Original Message-----<br>">
+<#assign decoratedMessage = decoratedMessage + "From: " + message.author + "<br>">
+<#assign decoratedMessage = decoratedMessage + "Sent: " + message.messageDate + "<br>">
+<#assign decoratedMessage = decoratedMessage + "Subject: " + case.title + "<br><br>">
+<#if (message.message?length + decoratedMessage?length) < 1000000>
+<#assign decoratedMessage = decoratedMessage + message.message + "<br><br>">
+<#else>
+<#assign remainingMessages = remainingMessages + 1>
+</#if>
+</#list>
+${decoratedMessage}
+<#if (remainingMessages > 0)>
+<#assign warningMessage = warningMessage + "<br>(" + remainingMessages + " older ">
+<#if remainingMessages == 1>
+<#assign warningMessage = warningMessage + "message was">
+<#else>
+<#assign warningMessage = warningMessage + "messages were">
+</#if>
+<#assign warningMessage = warningMessage + "omitted because of length limits. Please view the case online for the full message history.)">
+</#if>
+${warningMessage}
+</font>
+</p>
+</blockquote>
+</body>
+</html>
