@@ -1,0 +1,182 @@
+<?xml version="1.0"?>
+<!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
+<pdf>
+<head>
+<link name="Helvetica" type="font" subtype="type1"
+src="${nsfont.Helvetica}"
+src-bold="${nsfont.Helvetica_Bold}"
+src-italic="${nsfont.Helvetica_Oblique}"
+src-bolditalic="${nsfont.Helvetica_BoldOblique}"
+bytes="2" />
+<style>
+body {
+font-family: Helvetica;
+color: #000;
+width: 880px;
+overflow: scroll;
+margin: 0 auto;
+}
+
+p {
+margin: 5 0;
+}
+
+.indent {
+padding-left: 20px;
+}
+</style>
+</head>
+<body header="nlheader" header-height="10%" footer="nlfooter" footer-height="20pt"
+padding="0.5in 0.5in 0.5in 0.5in" size="Letter">
+
+<table class="header" style="width: 100%; font-size: 10pt;">
+<tr>
+<td align="center">
+<a href="https://www.royalbag.com/">
+<img
+src="https://888714.app.netsuite.com/core/media/media.nl?id=85432&c=888714&h=vx45izYbE3z0ZLBovy-0uBxWOUM9oiZisXN0sQGbeqEUODZw" />
+</a>
+</td>
+</tr>
+</table>
+
+<table style="width: 100%; margin-top: 48px; padding-bottom: 12; border-bottom: 0.3px solid;">
+<tr>
+<td style="vertical-align: middle; width: auto; padding-left: 0; color:#3c763d">
+<p style="font-size: 16pt; font-weight: 500;">Thank you for choosing RoyalBag.</p>
+<p style="font-size: 12pt;">We will notify you when your items ship.</p>
+</td>
+<td style="width: auto; text-align: right;">
+<p style=" font-size: 20pt;">Order #${transaction.tranid}</p>
+<p style="">Order date: ${transaction.trandate}</p>
+<#if transaction.otherrefnum?has_content>
+<strong>
+<p style="">PO #${transaction.otherrefnum}</p>
+</strong>
+</#if>
+</td>
+</tr>
+</table>
+
+<table style="width: 100%; margin-top: 48px;">
+<tr>
+<td style="vertical-align: top;">
+<strong>Ship address:</strong>
+<p class="indent">${transaction.shipaddress}</p>
+</td>
+<td style="vertical-align: top;">
+<strong>Ship method:</strong>
+<p class="indent">${transaction.shipmethod}</p>
+</td>
+</tr>
+</table>
+
+<#if transaction.item?has_content>
+<table
+style="width: 100%; margin-top: 16px; border-collapse: separate; border-spacing: 0; border: 1px solid black;">
+<thead>
+<tr>
+<th style="padding: 8px; border-bottom: 1px solid black; text-align: left;">Item</th>
+<th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Unit</th>
+<th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Over/Underrun</th>
+<th style="padding: 8px; border-bottom: 1px solid black; text-align: right;">Price</th>
+<th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Qty</th>
+<th style="padding: 8px; border-bottom: 1px solid black; text-align: right;">Total</th>
+</tr>
+</thead>
+<#list transaction.item as item>
+<tr>
+<td style="padding: 8px; text-align: left;">
+<span>${item.item}</span>
+<#if item.custcol_scm_customerpartnumber?has_content>
+<span><br />P/N: ${item.custcol_scm_customerpartnumber}</span>
+</#if>
+</td>
+<td style="padding: 8px; border-left: 1px dashed black; text-align: center;">
+<span>${item.units}</span>
+</td>
+<td style="padding: 8px; border-left: 1px dashed black; text-align: center;">
+<#if item.custcol_rb_overunderpercentage?has_content>
+<span>${item.custcol_rb_overunderpercentage}</span>
+<#else>
+<span>-</span>
+</#if>
+</td>
+<td style="padding: 8px; border-left: 1px dashed black; text-align: right;">
+<span>${item.rate}</span>
+</td>
+<td style="padding: 8px; border-left: 1px dashed black; text-align: center;">
+<span>${item.quantity}</span>
+</td>
+<td style="padding: 8px; border-left: 1px dashed black; text-align: right;">
+<span>${item.amount}</span>
+</td>
+</tr>
+</#list>
+</table>
+</#if>
+
+<!-- Lead Time -->
+<table style="width: 100%; margin-top: 16px;">
+<tr>
+<td style="width: 50%; vertical-align: top;">
+<span style="font-weight: bold;">Lead Time:</span> ${transaction.custbody_lead_time}<br>
+<span style="font-weight: bold;">Tolorances:</span> Due to industry tolerances, custom bags are subject to +/- 1/4" on size and 10% on thickness.
+</td>
+</tr>
+</table>
+
+<table style="page-break-inside: avoid; width: 100%; margin-top: 16px;">
+<tr>
+<td colspan="4"></td>
+<td align="right" style="font-weight: bold; color: #333333;">${transaction.subtotal@label}:</td>
+<td align="right">${transaction.subtotal}</td>
+</tr>
+<tr>
+<td colspan="4"></td>
+<td align="right" style="font-weight: bold; color: #333333;">Tax:</td>
+<td align="right">${transaction.taxtotal}</td>
+</tr>
+<tr>
+<td colspan="4"></td>
+<td align="right" style="font-weight: bold; color: #333333;">Shipping:</td>
+<td align="right">
+<#if (transaction.shippingcost?string?trim != "" && transaction.shippingcost?string != "0")>
+${transaction.shippingcost}
+<#else>
+TBD
+</#if>
+</td>
+</tr>
+<tr style="line-height: 200%;">
+<td background-color="#ffffff" colspan="4"></td>
+<td align="right" style="font-weight: bold; color: #333333;">${transaction.total@label}:</td>
+<td align="right">${transaction.total}</td>
+</tr>
+</table>
+
+<table style="width: 100%; margin-top: 16px;">
+<tr>
+<td class=""><strong>Payments:</strong></td>
+</tr>
+<tr>
+<td>${transaction.custbody_rb_deposits_total}</td>
+</tr>
+
+<!-- Optional Payment Info -->
+<!--
+<tr>
+<td class="indent">
+Transaction ID: ${transaction.tranid}<br>
+<#if transaction.paymentmethod??> Payment Method: ${transaction.paymentmethod}<br></#if>
+<#if transaction.terms??> Terms: ${transaction.terms}<br></#if>
+<#if transaction.paymethodtype??> Payment Type: ${transaction.paymethodtype}<br></#if>
+<#if transaction.custbody_payment_type??> Custom Payment Type: ${transaction.custbody_payment_type}<br></#if>
+<#if transaction.balance??> Balance: ${transaction.balance}<br></#if>
+</td>
+</tr>
+-->
+</table>
+
+</body>
+</pdf>
