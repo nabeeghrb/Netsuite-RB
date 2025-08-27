@@ -48,10 +48,10 @@ src="https://888714.app.netsuite.com/core/media/media.nl?id=85432&c=888714&h=vx4
 </td>
 <td style="width: auto; text-align: right;">
 <p style=" font-size: 20pt;">Order #${transaction.tranid}</p>
-<p style="">Order date: ${transaction.trandate}</p>
+<p>Order date: ${transaction.trandate}</p>
 <#if transaction.otherrefnum?has_content>
 <strong>
-<p style="">PO #${transaction.otherrefnum}</p>
+<p>PO #${transaction.otherrefnum}</p>
 </strong>
 </#if>
 </td>
