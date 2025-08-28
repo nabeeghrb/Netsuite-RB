@@ -141,10 +141,12 @@ style="width: 100%; margin-top: 16px; border-collapse: separate; border-spacing:
 <td colspan="4"></td>
 <td align="right" style="font-weight: bold; color: #333333;">Shipping:</td>
 <td align="right">
-<#if (transaction.shippingcost?has_content && transaction.shippingcost != 0)>
-    ${transaction.shippingcost}
+<#if transaction.shipmethod?has_content && transaction.shipmethod?trim?upper_case == "TBD">
+TBD
+<#elseif transaction.shipmethod?has_content && transaction.shipmethod?trim?upper_case != "TBD" && transaction.shippingcost?has_content>
+${transaction.shippingcost}
 <#else>
-    TBD
+TBD
 </#if>
 </td>
 </tr>
