@@ -48,10 +48,10 @@ src="https://888714.app.netsuite.com/core/media/media.nl?id=85432&c=888714&h=vx4
 </td>
 <td style="width: auto; text-align: right;">
 <p style=" font-size: 20pt;">Order #${transaction.tranid}</p>
-<p>Order date: ${transaction.trandate}</p>
+<p style="">Order date: ${transaction.trandate}</p>
 <#if transaction.otherrefnum?has_content>
 <strong>
-<p>PO #${transaction.otherrefnum}</p>
+<p style="">PO #${transaction.otherrefnum}</p>
 </strong>
 </#if>
 </td>
@@ -156,26 +156,62 @@ style="width: 100%; margin-top: 16px; border-collapse: separate; border-spacing:
 </table>
 
 <table style="width: 100%; margin-top: 16px;">
-<tr>
-<td class=""><strong>Payments:</strong></td>
-</tr>
-<tr>
-<td>${transaction.custbody_rb_deposits_total}</td>
-</tr>
+  <tr>
+    <td><strong>Payments:</strong></td>
+  </tr>
 
-<!-- Optional Payment Info -->
-<!--
-<tr>
-<td class="indent">
-Transaction ID: ${transaction.tranid}<br>
-<#if transaction.paymentmethod??> Payment Method: ${transaction.paymentmethod}<br></#if>
-<#if transaction.terms??> Terms: ${transaction.terms}<br></#if>
-<#if transaction.paymethodtype??> Payment Type: ${transaction.paymethodtype}<br></#if>
-<#if transaction.custbody_payment_type??> Custom Payment Type: ${transaction.custbody_payment_type}<br></#if>
-<#if transaction.balance??> Balance: ${transaction.balance}<br></#if>
-</td>
-</tr>
--->
+  <!-- Existing total field-->
+  <tr>
+    <td>${transaction.custbody_rb_deposits_total}</td>
+  </tr>
+
+  <!-- List each Customer Deposit linked to this Sales Order -->
+  <#assign depTotal = 0>
+  <#assign hasDeposits = false>
+
+  <#list transaction.links?if_exists as link>
+    <#-- Only show Customer Deposit records -->
+    <#if link.type?has_content && link.type == "Customer Deposit">
+      <#if hasDeposits == false>
+        <tr><td style="padding-top:8px;"><strong>Customer Deposits</strong></td></tr>
+        <tr>
+          <td class="indent">
+            <table style="width:100%;">
+              <thead>
+                <tr>
+                  <th align="left">Date</th>
+                  <th align="left">Deposit #</th>
+                  <th align="right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+      </#if>
+
+      <#assign hasDeposits = true>
+      <tr>
+        <td>${link.trandate}</td>
+        <td>${link.tranid}</td>
+        <td align="right">${link.total}</td>
+      </tr>
+      <#-- For math, cast to number -->
+      <#assign depTotal = depTotal + (link.total?number) >
+    </#if>
+  </#list>
+
+  <#if hasDeposits>
+      <tr>
+        <td colspan="2" align="right"><strong>Total Deposits:</strong></td>
+        <td align="right"><strong>${depTotal}</strong></td>
+      </tr>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+  <#else>
+    <tr>
+      <td class="indent">No customer deposits found for this order.</td>
+    </tr>
+  </#if>
 </table>
 
 </body>
