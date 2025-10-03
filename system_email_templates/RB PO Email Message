@@ -175,12 +175,12 @@ ${entity.custentity_rb_po_email_note}</span></td>
 <td style="padding-bottom: 15px;" width="5%" align="left">${item.quantity}</td>
 <td style="padding-bottom: 15px;" width="10%" align="left">${item.custcol_rb_itemsku}</td>
 <#if transaction.custbody_rb_custom_production?string=="Yes">
-<td style="padding-bottom: 15px;" width="12%" align="left">${item.custcol_rb_vendorquotenum}</td>
-<td style="padding-bottom: 15px;" width="35%" align="left"><a href="${item.custcol_rb_itemartlink}">${item.item?keep_after(" ")}</a></td>
+<td style="padding-bottom: 15px;" width="12%" align="center">${item.custcol_rb_vendorquotenum}</td>
+<td style="padding-bottom: 15px;" width="35%" align="center"><a href="${item.custcol_rb_itemartlink}">${item.description}</a></td>
 <td style="padding-bottom: 15px;" width="10%" align="center">${item.custcol_rb_overunderpercentage}</td>
 <#else>
 <td style="padding-bottom: 15px;" width="12%" align="left">${item.vendorname}</td>
-<td style="padding-bottom: 15px;" width="35%" align="left">${item.item?keep_after(" ")}</td>
+<td style="padding-bottom: 15px;" width="35%" align="left">${item.description}</td>
 <td style="padding-bottom: 15px;" width="10%" align="center">${item.units}</td>
 </#if>
 <td style="padding-bottom: 15px;" width="15%" align="right">${item.rate}</td>
@@ -259,4 +259,3 @@ ${entity.custentity_rb_po_email_note}</span></td>
 </div>
 </body>
 </pdf>
- 
