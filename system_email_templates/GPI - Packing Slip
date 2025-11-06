@@ -160,6 +160,13 @@
             <tr>
                 <td class="address">
                     <p class="address">${salesorder.shipaddress}</p>
+
+                    <!-- Prefer the transaction's Ship Phone, fall back to the Customer's phone -->
+                    <#if salesorder.shipphone?has_content>
+                        <p class="address"><b>Phone:</b> ${salesorder.shipphone}</p>
+                    <#elseif record.entity.phone?has_content>
+                        <p class="address"><b>Phone:</b> ${record.entity.phone}</p>
+                    </#if>
                 </td>
             </tr>
         </table>
