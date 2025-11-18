@@ -1,0 +1,300 @@
+<?xml version="1.0"?>
+<!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
+<pdf>
+<head>
+	<link name="NotoSans" type="font" subtype="truetype" src="${nsfont.NotoSans_Regular}" src-bold="${nsfont.NotoSans_Bold}" src-italic="${nsfont.NotoSans_Italic}" src-bolditalic="${nsfont.NotoSans_BoldItalic}" bytes="2" />
+	<#if .locale == "zh_CN">
+		<link name="NotoSansCJKsc" type="font" subtype="opentype" src="${nsfont.NotoSansCJKsc_Regular}" src-bold="${nsfont.NotoSansCJKsc_Bold}" bytes="2" />
+	<#elseif .locale == "zh_TW">
+		<link name="NotoSansCJKtc" type="font" subtype="opentype" src="${nsfont.NotoSansCJKtc_Regular}" src-bold="${nsfont.NotoSansCJKtc_Bold}" bytes="2" />
+	<#elseif .locale == "ja_JP">
+		<link name="NotoSansCJKjp" type="font" subtype="opentype" src="${nsfont.NotoSansCJKjp_Regular}" src-bold="${nsfont.NotoSansCJKjp_Bold}" bytes="2" />
+	<#elseif .locale == "ko_KR">
+		<link name="NotoSansCJKkr" type="font" subtype="opentype" src="${nsfont.NotoSansCJKkr_Regular}" src-bold="${nsfont.NotoSansCJKkr_Bold}" bytes="2" />
+	<#elseif .locale == "th_TH">
+		<link name="NotoSansThai" type="font" subtype="opentype" src="${nsfont.NotoSansThai_Regular}" src-bold="${nsfont.NotoSansThai_Bold}" bytes="2" />
+	</#if>
+    <style type="text/css">* {
+		<#if .locale == "zh_CN">
+			font-family: NotoSans, NotoSansCJKsc, sans-serif;
+		<#elseif .locale == "zh_TW">
+			font-family: NotoSans, NotoSansCJKtc, sans-serif;
+		<#elseif .locale == "ja_JP">
+			font-family: NotoSans, NotoSansCJKjp, sans-serif;
+		<#elseif .locale == "ko_KR">
+			font-family: NotoSans, NotoSansCJKkr, sans-serif;
+		<#elseif .locale == "th_TH">
+			font-family: NotoSans, NotoSansThai, sans-serif;
+		<#else>
+			font-family: NotoSans, sans-serif;
+		</#if>
+		}
+		table {
+			font-size: 10pt;
+			table-layout: fixed;
+		}
+        th {
+            font-weight: bold;
+            font-size: 9pt;
+            vertical-align: middle;
+            padding: 5px 6px 3px;
+            background-color: #e3e3e3;
+            color: #333333;
+        }
+        td {
+            padding: 4px 6px;
+        }
+		td p { align:left }
+        b {
+            font-weight: bold;
+            color: #333333;
+        }
+        table.header td {
+            padding: 0px;
+            font-size: 10pt;
+        }
+        table.footer td {
+            padding: 0px;
+            font-size: 8pt;
+        }
+        table.itemtable th {
+            padding-bottom: 10px;
+            padding-top: 10px;
+        }
+        table.body td {
+            padding-top: 2px;
+        }
+        table.total {
+            page-break-inside: avoid;
+        }
+        tr.totalrow {
+            background-color: #e3e3e3;
+            line-height: 200%;
+        }
+        td.totalboxtop {
+            font-size: 13pt;
+            background-color: #e3e3e3;
+        }
+        td.addressheader {
+            font-size: 9pt;
+            padding-top: 6px;
+            padding-bottom: 2px;
+        }
+        td.address {
+            padding-top: 0px;
+        }
+        td.totalboxmid {
+            font-size: 28pt;
+            padding-top: 20px;
+            background-color: #e3e3e3;
+        }
+        td.totalboxbot {
+            background-color: #e3e3e3;
+            font-weight: bold;
+        }
+        span.title {
+            font-size: 28pt;
+        }
+      span.verticalline {
+        border-left: 6px solid green;
+      }
+        span.number {
+            font-size: 16pt;
+        }
+        span.itemname {
+            font-weight: bold;
+            line-height: 150%;
+        }
+        hr {
+            width: 100%;
+            color: #d3d3d3;
+            background-color: #d3d3d3;
+            height: 1px;
+        }
+</style>
+</head>
+<body header="nlheader" header-height="10%" footer="nlfooter" footer-height="20pt" padding="0.5in 0.5in 0.5in 0.5in" size="Letter">
+    <table style="width: 100%; margin-top: 10px;"></table>
+  <div class="wrapper">
+        <!-- Header Section -->
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <tr>
+                <td style="width: 40%; vertical-align: top; padding: 0;">
+                    <#if companyInformation.logoUrl?length != 0>
+                        <img src="${companyInformation.logoUrl}" alt="Company Logo" style="width: 250px; height: 70px; margin: 7px;" />
+                    </#if>
+                </td>
+                <td style="width: 20%; border-left: 3px solid #c4c3c0; vertical-align: middle; padding-left: 5px; font-size: 10pt;">
+                    cs@royalbag.com<br />
+                    866-686-7401<br />
+                    www.royalbag.com
+                </td>
+                <td style="width: 40%; text-align: right; vertical-align: top; padding: 0;">
+                    <span style="font-size: 28pt; color: #333333;">Proforma Invoice</span><br />
+                    <span style="font-size: 16pt; color: #333333;">#${transaction.tranid}</span>
+                </td>
+            </tr>
+        </table>
+
+<table class="body" style="width: 100%; margin-top: 10px;"><tr>
+	<td class="addressheader" style="width:35%;"><b>${transaction.billaddress@label}</b></td>
+	<td class="addressheader" style="width:35%;"><b>${transaction.shipaddress@label}</b></td>
+	<td align="right" rowspan="4" style="width:30%;">PO #${record.otherrefnum}<br />Date: ${record.trandate}<br />Ship via:${record.shipmethod}</td>
+	</tr>
+	<tr>
+	<td class="address" rowspan="4">${transaction.billaddress}</td>
+	<td class="address" rowspan="4">${transaction.shipaddress}</td>
+	</tr></table>
+  
+<#if transaction.item?has_content>
+<table class="itemtable" style="width: 100%; margin-top: 30px;"><!-- start items -->
+
+<thead>
+	<tr>
+	<th colspan="4">ID</th>
+	<th colspan="9">Name</th>
+	<th colspan="2">Unit</th>
+	<th align="right" colspan="4">Unit Price</th>
+	<th align="right" colspan="3">Qty</th>
+	<th align="right" colspan="4">Price</th>
+	</tr>
+</thead>
+  <#list transaction.item as item>
+<tr>
+	<td colspan="4">${item.item?keep_before(' ')}</td>
+	<td colspan="9">${item.item?keep_after(' ')}</td>
+	<td colspan="2">${item.units}</td>
+	<td align="right" colspan="4">${item.rate}</td>
+	<td align="right" colspan="3">${item.quantity}</td>
+	<td align="right" colspan="4">${item.amount}</td>
+	</tr>
+    </#list>
+    <!-- end items --></table>
+
+<hr /></#if>
+<table class="total" style="width: 100%; margin-top: 10px;"><tr>
+  	<#assign acsTotalDue = record.amountremaining?replace("$", "")>
+    <#assign acsTotalDue = acsTotalDue?replace(".", "")>
+	<td colspan="4">&nbsp;</td>
+	<td align="right"><b>${transaction.subtotal@label}</b></td>
+	<td align="right"><b>${transaction.subtotal}</b></td>
+	</tr>
+	<tr>
+	<td colspan="4">&nbsp;</td>
+	<td align="right">Shipping:</td>
+	<td align="right">${transaction.shippingcost}</td>
+	</tr>
+      	<tr>
+	<td colspan="4">&nbsp;</td>
+	<td align="right">Discounts:</td>
+	<td align="right">${transaction.discounttotal}</td>
+	</tr>
+    <#if record.taxitem?contains('NY')>
+    	<tr>
+			<td colspan="4">&nbsp;</td>
+			<td align="right">NY Sales Tax:</td>
+			<td align="right">${transaction.taxtotal}</td>
+      	</tr>
+  	</#if>
+	<tr>
+	<td colspan="4">&nbsp;</td>
+	<td align="right"><b>Total Invoice:</b></td>
+	<td align="right"><b>${transaction.total}</b></td>
+	</tr>
+  	<tr>
+	<td colspan="4">&nbsp;</td>
+	<td align="right" style="font-size:9pt;">Payment applied:</td>
+	<td align="right">${transaction.amountpaid}</td>
+	</tr>
+    <tr>
+	<td colspan="4">&nbsp;</td>
+	<td align="right"><b>Total Due:</b></td>
+	<td align="right"><b>${transaction.amountremaining} </b></td>
+	</tr></table>
+<table style="width: 100%; margin-top: 16px;">
+<tr>
+<td><strong>Payments:</strong></td>
+</tr>
+
+<!-- Existing custom total field (if you still want to show it) -->
+<tr>
+<td>${transaction.custbody_rb_deposits_total!''}</td>
+</tr>
+
+<#-- Variables for calculated deposits -->
+<#assign depTotal = 0.0>
+<#assign hasDeposits = false>
+
+<#-- First pass: collect deposits and calculate total -->
+<#list transaction.links?if_exists as link>
+<#-- Only include Customer Deposit records -->
+<#if link.type?has_content && link.type == "Customer Deposit">
+
+<#-- Mark that we have at least one deposit -->
+<#assign hasDeposits = true>
+
+<#-- Convert formatted total (e.g. "$1,234.56") into a number -->
+<#assign depAmount =
+link.total?string
+?replace("$", "")
+?replace(",", "")
+?number
+>
+<#assign depTotal = depTotal + depAmount>
+</#if>
+</#list>
+
+<#-- Second pass: render details if any deposits exist -->
+<#if hasDeposits>
+<tr>
+<td style="padding-top:8px;">
+<strong>Customer Deposits</strong>
+<table style="width:100%; margin-top:4px;">
+<thead>
+<tr>
+<th align="left">Date</th>
+<th align="left">Deposit #</th>
+<th align="right">Amount</th>
+</tr>
+</thead>
+<tbody>
+<#list transaction.links?if_exists as link>
+<#if link.type?has_content && link.type == "Customer Deposit">
+<tr>
+<td>${link.trandate}</td>
+<td>${link.tranid}</td>
+<td align="right">${link.total}</td>
+</tr>
+</#if>
+</#list>
+
+<tr>
+<td colspan="2" align="right"><strong>Total Deposits:</strong></td>
+<td align="right">
+<strong>${depTotal?string["$#,##0.00"]}</strong>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<#else>
+<tr>
+<td class="indent">No customer deposits found for this order.</td>
+</tr>
+</#if>
+</table>
+
+<#if acsTotalDue = '000'>
+  &nbsp;
+<#else>
+<br/><br/><br/>
+<table style="width:100%"><tr><td align="center" style="font-size:12px;">
+<b>Remittance information:</b><br/><br/>
+Mail - Royal Bag Inc. 5501 New Utrecht Ave. Suite 501 Brooklyn NY 11219<br/><br/>
+EFT - Routing: 021000021 Account 166176630. Please include Invoice# in payment reference and email remittance advice to billing@royalbag.com.
+</td></tr></table>
+</#if>
+<br/><br/><table style="width:100%"><tr><td align="center" style="font-size:16px;"><b>Thank you for your order. We appreciate your business!</b></td></tr></table>
+</body>
+</pdf>
