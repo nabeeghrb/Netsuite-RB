@@ -87,7 +87,7 @@ style="width: 100%; margin-top: 16px; border-collapse: separate; border-spacing:
 <tr>
 <th style="padding: 8px; border-bottom: 1px solid black; text-align: left;">Item</th>
 <th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Unit</th>
-<#if item.custcol_rb_overunderpercentage?has_content><th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Over/Underrun</th></#if>
+<#if transaction.custbody_rb_custom_production == true><th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Over/Underrun</th></#if>
 <th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Price</th>
 <th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Qty</th>
 <th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Total</th>
@@ -104,7 +104,7 @@ style="width: 100%; margin-top: 16px; border-collapse: separate; border-spacing:
 <td style="padding: 8px; border-left: 1px dashed black; text-align: center;">
 <span>${item.units}</span>
 </td>
-<#if item.custcol_rb_overunderpercentage?has_content>
+<#if transaction.custbody_rb_custom_production == true>
   <td style="padding: 8px; border-left: 1px dashed black; text-align: center;">
 <span>${item.custcol_rb_overunderpercentage}</span>
 </td>
@@ -129,7 +129,7 @@ style="width: 100%; margin-top: 16px; border-collapse: separate; border-spacing:
 <tr>
 <td style="width: 50%; vertical-align: top;">
 
-<span style="font-weight: bold;">Lead Time:</span> <#if transaction.custbody_lead_time?has_content>${transaction.custbody_lead_time}<#else>TBD<br></#if>
+<span style="font-weight: bold;">Lead Time:</span> <#if transaction.custbody_lead_time?has_content>${transaction.custbody_lead_time}<#else>TBD</#if><br>
 <span style="font-weight: bold;">Tolerances:</span> Due to industry tolerances, custom bags are subject to +/- 1/4" on size and 10% on thickness.
 </td>
 </tr>
