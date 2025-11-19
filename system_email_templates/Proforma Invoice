@@ -87,10 +87,10 @@ style="width: 100%; margin-top: 16px; border-collapse: separate; border-spacing:
 <tr>
 <th style="padding: 8px; border-bottom: 1px solid black; text-align: left;">Item</th>
 <th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Unit</th>
-<th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Over/Underrun</th>
-<th style="padding: 8px; border-bottom: 1px solid black; text-align: right;">Price</th>
+<#if item.custcol_rb_overunderpercentage?has_content><th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Over/Underrun</th></#if>
+<th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Price</th>
 <th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Qty</th>
-<th style="padding: 8px; border-bottom: 1px solid black; text-align: right;">Total</th>
+<th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Total</th>
 </tr>
 </thead>
 <#list transaction.item as item>
@@ -104,20 +104,18 @@ style="width: 100%; margin-top: 16px; border-collapse: separate; border-spacing:
 <td style="padding: 8px; border-left: 1px dashed black; text-align: center;">
 <span>${item.units}</span>
 </td>
-<td style="padding: 8px; border-left: 1px dashed black; text-align: center;">
 <#if item.custcol_rb_overunderpercentage?has_content>
+  <td style="padding: 8px; border-left: 1px dashed black; text-align: center;">
 <span>${item.custcol_rb_overunderpercentage}</span>
-<#else>
-<span>-</span>
-</#if>
 </td>
-<td style="padding: 8px; border-left: 1px dashed black; text-align: right;">
+</#if>
+<td style="padding: 8px; border-left: 1px dashed black; text-align: center;">
 <span>${item.rate}</span>
 </td>
 <td style="padding: 8px; border-left: 1px dashed black; text-align: center;">
 <span>${item.quantity}</span>
 </td>
-<td style="padding: 8px; border-left: 1px dashed black; text-align: right;">
+<td style="padding: 8px; border-left: 1px dashed black; text-align: center;">
 <span>${item.amount}</span>
 </td>
 </tr>
@@ -196,7 +194,7 @@ EFT - Routing: 021000021 Account 166176630. Please include Invoice# in payment r
       <#-- Mark that we have at least one deposit -->
       <#assign hasDeposits = true>
 
-      <#-- Convert formatted total (e.g. "$1,234.56") into a number -->
+      <#-- Convert formatted total into a number -->
       <#assign depAmount =
           link.total?string
                      ?replace("$", "")
