@@ -38,14 +38,14 @@ src="https://888714.app.netsuite.com/core/media/media.nl?id=85432&c=888714&h=vx4
 </a>
 </td>
 <td style="width: 20%; border-left: 3px solid #c4c3c0; vertical-align: middle; padding-left: 5px; font-size: 10pt;">
-                    cs@royalbag.com<br />
-                    866-686-7401<br />
-                    www.royalbag.com
-                </td>
-                <td style="width: 40%; text-align: right; vertical-align: top; padding: 0;">
-                    <span style="font-size: 28pt; color: #333333;">Proforma Invoice</span><br />
-                    <span style="font-size: 16pt; color: #333333;">#${transaction.tranid}</span>
-                </td>
+cs@royalbag.com<br />
+866-686-7401<br />
+www.royalbag.com
+</td>
+<td style="width: 40%; text-align: right; vertical-align: top; padding: 0;">
+<span style="font-size: 28pt; color: #333333;">Proforma Invoice</span><br />
+<span style="font-size: 16pt; color: #333333;">#${transaction.tranid}</span>
+</td>
 </tr>
 </table>
 
@@ -87,7 +87,7 @@ style="width: 100%; margin-top: 16px; border-collapse: separate; border-spacing:
 <tr>
 <th style="padding: 8px; border-bottom: 1px solid black; text-align: left;">Item</th>
 <th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Unit</th>
-<#if transaction.custbody_rb_custom_production == true><th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Over/Underrun</th></#if>
+<#if transaction.custbody_rb_custom_production?string == "Yes"><th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Over/Underrun</th></#if>
 <th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Price</th>
 <th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Qty</th>
 <th style="padding: 8px; border-bottom: 1px solid black; text-align: center;">Total</th>
@@ -104,8 +104,8 @@ style="width: 100%; margin-top: 16px; border-collapse: separate; border-spacing:
 <td style="padding: 8px; border-left: 1px dashed black; text-align: center;">
 <span>${item.units}</span>
 </td>
-<#if transaction.custbody_rb_custom_production == true>
-  <td style="padding: 8px; border-left: 1px dashed black; text-align: center;">
+<#if transaction.custbody_rb_custom_production?string == "Yes">
+<td style="padding: 8px; border-left: 1px dashed black; text-align: center;">
 <span>${item.custcol_rb_overunderpercentage}</span>
 </td>
 </#if>
@@ -124,7 +124,7 @@ style="width: 100%; margin-top: 16px; border-collapse: separate; border-spacing:
 </#if>
 
 <!-- Lead Time -->
-<#if transaction.custbody_rb_custom_production == true >
+<#if transaction.custbody_rb_custom_production?string == "Yes">
 <table style="width: 100%; margin-top: 16px;">
 <tr>
 <td style="width: 50%; vertical-align: top;">
@@ -158,11 +158,11 @@ Discount:</td>
 <td align="right" style="font-weight: bold; color: #333333;">Shipping:</td>
 <td align="right">
 <#if transaction.shipmethod?has_content && transaction.shipmethod?trim?upper_case == "TBD">
-  TBD
+TBD
 <#elseif transaction.shipmethod?has_content && transaction.shipmethod?trim?upper_case != "TBD" && transaction.shippingcost?has_content>
-  ${transaction.shippingcost}
+${transaction.shippingcost}
 <#else>
-  TBD
+TBD
 </#if>
 </td>
 </tr>
@@ -180,71 +180,70 @@ EFT - Routing: 021000021 Account 166176630. Please include Invoice# in payment r
 </td></tr></table>
 
 <hr>
-  
+
 <table style="width: 100%; margin-top: 16px;">
-  <#-- Variables for calculated deposits -->
-  <#assign depTotal = 0.0>
-  <#assign hasDeposits = false>
+<#-- Variables for calculated deposits -->
+<#assign depTotal = 0.0>
+<#assign hasDeposits = false>
 
-  <#-- First pass: collect deposits and calculate total -->
-  <#list transaction.links?if_exists as link>
-    <#-- Only include Customer Deposit records -->
-    <#if link.type?has_content && link.type == "Customer Deposit">
+<#-- First pass: collect deposits and calculate total -->
+<#list transaction.links?if_exists as link>
+<#-- Only include Customer Deposit records -->
+<#if link.type?has_content && link.type == "Customer Deposit">
 
-      <#-- Mark that we have at least one deposit -->
-      <#assign hasDeposits = true>
+<#-- Mark that we have at least one deposit -->
+<#assign hasDeposits = true>
 
-      <#-- Convert formatted total into a number -->
-      <#assign depAmount =
-          link.total?string
-                     ?replace("$", "")
-                     ?replace(",", "")
-                     ?number
-      >
-      <#assign depTotal = depTotal + depAmount>
-    </#if>
-  </#list>
+<#-- Convert formatted total into a number -->
+<#assign depAmount =
+link.total?string
+?replace("$", "")
+?replace(",", "")
+?number
+>
+<#assign depTotal = depTotal + depAmount>
+</#if>
+</#list>
 
-  <#-- Second pass: render details if any deposits exist -->
-  <#if hasDeposits>
-    <tr>
-      <td style="padding-top:8px;">
-        <strong>Payments:</strong>
-        <table style="width:100%; margin-top:4px;font-size:12px;">
-          <thead>
-            <tr>
-              <th align="left">Date</th>
-              <th align="left">Deposit #</th>
-              <th align="right">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            <#list transaction.links?if_exists as link>
-              <#if link.type?has_content && link.type == "Customer Deposit">
-                <tr>
-                  <td>${link.trandate}</td>
-                  <td>${link.tranid}</td>
-                  <td align="right">${link.total}</td>
-                </tr>
-              </#if>
-            </#list>
+<#-- Second pass: render details if any deposits exist -->
+<#if hasDeposits>
+<tr>
+<td style="padding-top:8px;">
+<strong>Payments:</strong>
+<table style="width:100%; margin-top:4px;font-size:12px;">
+<thead>
+<tr>
+<th align="left">Date</th>
+<th align="left">Deposit #</th>
+<th align="right">Amount</th>
+</tr>
+</thead>
+<tbody>
+<#list transaction.links?if_exists as link>
+<#if link.type?has_content && link.type == "Customer Deposit">
+<tr>
+<td>${link.trandate}</td>
+<td>${link.tranid}</td>
+<td align="right">${link.total}</td>
+</tr>
+</#if>
+</#list>
 
-            <tr>
-              <td colspan="2" align="right"><strong>Total Deposits:</strong></td>
-              <td align="right">
-                <strong>${depTotal?string["$#,##0.00"]}</strong>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </td>
-    </tr>
-  <#else>
-    <tr>
-      <td>No customer deposits found for this order.</td>
-    </tr>
-  </#if>
+<tr>
+<td colspan="2" align="right"><strong>Total Deposits:</strong></td>
+<td align="right">
+<strong>${depTotal?string["$#,##0.00"]}</strong>
+</td>
+</tr>
+</tbody>
 </table>
-
+</td>
+</tr>
+<#else>
+<tr>
+<td>No customer deposits found for this order.</td>
+</tr>
+</#if>
+</table>
 </body>
 </pdf>
