@@ -184,15 +184,6 @@ EFT - Routing: 021000021 Account 166176630. Please include Invoice# in payment r
 <hr>
   
 <table style="width: 100%; margin-top: 16px;">
-  <tr>
-    <td><strong>Payments:</strong></td>
-  </tr>
-
-  <!-- Existing custom total field (if you still want to show it) -->
-  <tr>
-    <td>${transaction.custbody_rb_deposits_total!''}</td>
-  </tr>
-
   <#-- Variables for calculated deposits -->
   <#assign depTotal = 0.0>
   <#assign hasDeposits = false>
@@ -220,7 +211,7 @@ EFT - Routing: 021000021 Account 166176630. Please include Invoice# in payment r
   <#if hasDeposits>
     <tr>
       <td style="padding-top:8px;">
-        <strong>Customer Deposits</strong>
+        <strong>Payments:</strong>
         <table style="width:100%; margin-top:4px">
           <thead>
             <tr>
