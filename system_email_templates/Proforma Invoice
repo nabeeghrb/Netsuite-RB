@@ -136,7 +136,7 @@ style="width: 100%; margin-top: 16px; border-collapse: separate; border-spacing:
 </table>
 </#if>
 
-<table style="page-break-inside: avoid; width: 100%; margin-top: 16px;">
+<table align="right" style="page-break-inside: avoid; width: 50%; margin-top: 16px;">
 <tr>
 <td colspan="4"></td>
 <td align="right" style="font-weight: bold; color: #333333;">${transaction.subtotal@label}:</td>
@@ -166,8 +166,8 @@ TBD
 </#if>
 </td>
 </tr>
-<tr style="line-height: 200%;">
-<td background-color="#ffffff" colspan="4"></td>
+<tr>
+<td colspan="4"></td>
 <td align="right" style="font-weight: bold; color: #333333;">${transaction.total@label}:</td>
 <td align="right">${transaction.total}</td>
 </tr>
