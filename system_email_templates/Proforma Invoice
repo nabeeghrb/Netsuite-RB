@@ -55,9 +55,9 @@ www.royalbag.com
 <p style="font-size: 16pt; font-weight: 500;">Thank you for choosing RoyalBag.</p>
 </td>
 <td style="width: auto; text-align: right;">
-<p style="">Date: ${transaction.trandate}</p>
+<p>Date: ${transaction.trandate}</p>
 <#if transaction.otherrefnum?has_content>
-<p style="">PO #${transaction.otherrefnum}</p>
+<p>PO #${transaction.otherrefnum}</p>
 </#if>
 </td>
 </tr>
