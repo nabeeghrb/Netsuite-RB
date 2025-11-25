@@ -171,6 +171,11 @@ TBD
 <td align="right" style="font-weight: bold; color: #333333;">${transaction.total@label}:</td>
 <td align="right">${transaction.total}</td>
 </tr>
+<tr>
+<td colspan="4"></td>
+<td align="right" style="font-weight: bold; color: #333333;">Deposit Amount Due:</td>
+<td align="right">${transaction.custbody_rb_depositamountdue}</td>
+</tr>
 </table>
 
 <table style="width:100%;margin-top:15px;"><tr><td align="left" style="font-size:12px;">
