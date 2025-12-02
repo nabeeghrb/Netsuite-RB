@@ -150,6 +150,13 @@
                     ${record.subtotal@label}:</td>
                 <td align="right">${record.subtotal}</td>
             </tr>
+            <#if record.discounttotal?has_content && record.discounttotal != 0>
+                <tr>
+                    <td colspan="4"></td>
+                    <td align="right" style="font-weight: bold; color: #333333;">Discount:</td>
+                    <td align="right">-${record.discounttotal?replace("[()]","","r")}</td>
+                </tr>
+            </#if>
             <tr>
                 <td colspan="4"></td>
                 <td align="right" style="font-weight: bold; color: #333333;">Tax:</td>
