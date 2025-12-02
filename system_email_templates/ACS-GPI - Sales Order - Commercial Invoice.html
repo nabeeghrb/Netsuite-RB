@@ -1,0 +1,210 @@
+<?xml version="1.0"?>
+<!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
+<pdf>
+<head>
+	<link name="NotoSans" type="font" subtype="truetype" src="${nsfont.NotoSans_Regular}" src-bold="${nsfont.NotoSans_Bold}" src-italic="${nsfont.NotoSans_Italic}" src-bolditalic="${nsfont.NotoSans_BoldItalic}" bytes="2" />
+	<#if .locale == "zh_CN">
+		<link name="NotoSansCJKsc" type="font" subtype="opentype" src="${nsfont.NotoSansCJKsc_Regular}" src-bold="${nsfont.NotoSansCJKsc_Bold}" bytes="2" />
+	<#elseif .locale == "zh_TW">
+		<link name="NotoSansCJKtc" type="font" subtype="opentype" src="${nsfont.NotoSansCJKtc_Regular}" src-bold="${nsfont.NotoSansCJKtc_Bold}" bytes="2" />
+	<#elseif .locale == "ja_JP">
+		<link name="NotoSansCJKjp" type="font" subtype="opentype" src="${nsfont.NotoSansCJKjp_Regular}" src-bold="${nsfont.NotoSansCJKjp_Bold}" bytes="2" />
+	<#elseif .locale == "ko_KR">
+		<link name="NotoSansCJKkr" type="font" subtype="opentype" src="${nsfont.NotoSansCJKkr_Regular}" src-bold="${nsfont.NotoSansCJKkr_Bold}" bytes="2" />
+	<#elseif .locale == "th_TH">
+		<link name="NotoSansThai" type="font" subtype="opentype" src="${nsfont.NotoSansThai_Regular}" src-bold="${nsfont.NotoSansThai_Bold}" bytes="2" />
+	</#if>
+    <macrolist>
+        <macro id="nlheader">
+            <table class="header" style="width: 100%; font-size: 10pt;">
+                <tr>
+                    <td rowspan="3" style="padding: 8px; text-align: center;">
+                    <#if companyInformation.logoUrl?length != 0>
+                        <@filecabinet nstype="image" align="center" src="${companyInformation.logoUrl}" style="width:350px;height:60px;" />
+                    </#if>
+                    </td>
+                </tr>
+              </table>
+                <table style="border-bottom: .3px solid; width: 100%; font-size: 12pt; color: black; margin: 0 0 10px 0;">
+                <tr>
+                    <td style="padding-top: 18; width: 57%; color:#3c763d; white-space: wrap; overflow: visible;"><span class="thanks" style="font-size: 15pt;">Thank you for choosing RoyalBag.</span></td>
+                    <td style="color: #999999; padding-top: 16;"><span style="font-size: 20pt;">Commercial Invoice #${record.tranid}</span></td>
+                </tr>
+                <tr>
+                    <td style="width: 57%; color:#3c763d; white-space: wrap; overflow: visible;"><span style="font-size: 10pt;">We will notify you when your items ship.</span></td>
+                    <td style="color: #999999; padding: 5;">Order date: ${record.trandate}</td>
+                </tr>
+                <tr>
+                    <td style="width: 57%;"></td>
+                    <td style="color: #999999; padding: 5;padding-bottom: 20px;"><b>PO #${record.otherrefnum}</b></td>
+                </tr>
+            </table>
+        </macro>
+    </macrolist>
+    <style>
+		* {
+		<#if .locale == "zh_CN">
+			font-family: NotoSans, NotoSansCJKsc, sans-serif;
+		<#elseif .locale == "zh_TW">
+			font-family: NotoSans, NotoSansCJKtc, sans-serif;
+		<#elseif .locale == "ja_JP">
+			font-family: NotoSans, NotoSansCJKjp, sans-serif;
+		<#elseif .locale == "ko_KR">
+			font-family: NotoSans, NotoSansCJKkr, sans-serif;
+		<#elseif .locale == "th_TH">
+			font-family: NotoSans, NotoSansThai, sans-serif;
+		<#else>
+			font-family: NotoSans, sans-serif;
+		</#if>
+		}
+        table.header {
+            background-color: #f4f4f4;
+        }
+		table {
+			font-size: 9pt;
+			table-layout: fixed;
+		}
+        th {
+            font-weight: bold;
+            font-size: 8pt;
+            vertical-align: middle;
+            padding: 5px 6px 3px;
+            background-color: #e3e3e3;
+            color: #333333;
+        }
+        td {
+            padding: 4px 6px;
+        }
+		td p { align:left }
+        span.thanks {
+            white-space: nowrap;
+            overflow: visible; 
+        }
+        td.addressheader {
+            font-size: 10pt;
+            font-weight: bold;
+            padding-top: 6px;
+            padding-bottom: 2px;
+        }
+        td.address {
+            font-size: 10pt;
+            padding-top: 0;
+            margin-left: 18px;
+            margin-top: 5px;
+        }
+        p.address {
+          line-height: 130%;
+        }
+    </style>
+</head>
+<body header="nlheader" header-height="215px" footer="nlfooter" footer-height="20pt" padding="0.5in 0.5in 0.5in 0.5in" size="Letter">
+    <table style="width: 100%; margin-top: 0;">
+        <tr>
+            <td class="addressheader">Ship address:</td>
+        </tr>
+        <tr>
+            <td class="address"><p class="address">${record.shipaddress}<br/>${record.custbody_rb_shipping_phone_num}</p></td>
+        </tr>
+    </table>
+    
+    <#if record.item?has_content>
+            <table
+                style="width: 100%; margin-top: 16px; border-collapse: separate; border-spacing: 0; border: 1px solid black;">
+                <thead repeat-header="true">
+                    <tr>
+                        <th style="padding: 8px; border-bottom: 1px solid black; text-align: left;">
+                            Item</th>
+                        <th
+                            style="padding: 8px; border-bottom: 1px solid black; text-align: center;">
+                            Unit</th>
+                        <th
+                            style="padding: 8px; border-bottom: 1px solid black; text-align: right;">
+                            Price</th>
+                        <th
+                            style="padding: 8px; border-bottom: 1px solid black; text-align: center;">
+                            Qty</th>
+                        <th
+                            style="padding: 8px; border-bottom: 1px solid black; text-align: right;">
+                            Total</th>
+                    </tr>
+                </thead>
+                <#list record.item as item>
+                    <tr>
+                        <td style="padding: 8px; text-align: left;">${item.item}</td>
+                        <td style="padding: 8px; border-left: 1px dashed black; text-align: center;">
+                            ${item.units}</td>
+                        <td style="padding: 8px; border-left: 1px dashed black; text-align: right;">
+                            ${item.rate}</td>
+                        <td style="padding: 8px; border-left: 1px dashed black; text-align: center;">
+                            ${item.quantity}</td>
+                        <td style="padding: 8px; border-left: 1px dashed black; text-align: right;">
+                            ${item.amount}</td>
+                    </tr>
+                </#list>
+            </table>
+        </#if>
+        <table style="page-break-inside: avoid; width: 100%; margin-top: 16px;">
+            <tr>
+                <td colspan="4"></td>
+                <td align="right" style="font-weight: bold; color: #333333;">
+                    ${record.subtotal@label}:</td>
+                <td align="right">${record.subtotal}</td>
+            </tr>
+            <tr>
+                <td colspan="4"></td>
+                <td align="right" style="font-weight: bold; color: #333333;">Tax:</td>
+                <td align="right">${record.taxtotal}</td>
+            </tr>
+            <tr>
+                <td colspan="4"></td>
+                <td align="right" style="font-weight: bold; color: #333333;">Shipping:</td>
+                <td align="right">${record.shippingcost}</td>
+            </tr>
+            <tr style="line-height: 200%;">
+                <td background-color="#ffffff" colspan="4"></td>
+                <td align="right" style="font-weight: bold; color: #333333;">
+                    ${record.total@label}:</td>
+                <td align="right">${record.total}</td>
+            </tr>
+        </table>
+        <table style="width: 100%; margin-top: 16px;">
+            <tr>
+                <td class="">
+                    <strong>Payments::</strong>
+                </td>
+            </tr>
+            <tr>
+                <td class="">
+                    <#if record.customerdeposit?has_content>
+                    <table
+                        style="width: 100%; margin-top: 8px; border-collapse: separate; border-spacing: 0;">
+                        <#list record.customerdeposit as deposit>
+                            <tr>
+                                <td style="padding: 4px;">${deposit.depositdate}</td>
+                                <td style="padding: 4px;">${deposit.paymentmethod}</td>
+                                <td style="padding: 4px; text-align: right;">${deposit.payment}</td>
+                            </tr>
+                        </#list>
+                        <tr style="line-height: 150%;">
+                            <td colspan="2"
+                                style="text-align: right; padding: 4px; font-weight: bold;">Total
+                                Payments:</td>
+                            <td style="padding: 4px; text-align: right; font-weight: bold;">
+                                ${record.depositTotal}</td>
+                        </tr>
+                        <tr style="line-height: 150%;">
+                            <td colspan="2"
+                                style="text-align: right; padding: 4px; font-weight: bold;">Balance
+                                Due:</td>
+                            <td style="padding: 4px; text-align: right; font-weight: bold;">
+                                ${record.balance}</td>
+                        </tr>
+                    </table>
+                    <#else>
+                        <p class="indent">No payments received</p>
+                    </#if>
+                </td>
+            </tr>
+        </table>
+</body>
+</pdf>
