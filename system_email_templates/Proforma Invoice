@@ -168,14 +168,20 @@ TBD
 </tr>
 <tr>
 <td colspan="4"></td>
+<#if transaction.custbody_rb_custom_production?string == "Yes">
+<td align="right" style="font-weight: bold; color: #333333;">Estimated Total:</td>
+<#else>
 <td align="right" style="font-weight: bold; color: #333333;">${transaction.total@label}:</td>
+</#if>
 <td align="right">${transaction.total}</td>
 </tr>
+<#if transaction.custbody_rb_depositamountdue?string?trim != "">
 <tr>
 <td colspan="4"></td>
-<td align="right" style="font-weight: bold; color: #333333;">Deposit Amount Due:</td>
+<td align="right" style="font-weight: bold; color: #333333;">Deposit Due:</td>
 <td align="right">${transaction.custbody_rb_depositamountdue}</td>
 </tr>
+</#if>
 </table>
 
 <table style="width:100%;margin-top:15px;"><tr><td align="left" style="font-size:12px;">
