@@ -10,8 +10,8 @@
 define(['N/log'], function(log) {
 
     const EMAILS_TO_REMOVE = [
-        'testdist@royalbag.com','cs@royalbag.com','orders@royalabg.com'
-    ];
+        'CustomerService@royalbag.com','cs@royalbag.com','orders@royalabg.com'
+    ].map(e => e.trim().toLowerCase());
 
     /**
      * Removes company email addresses from the Additional Recipients sublist
