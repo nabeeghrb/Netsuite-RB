@@ -130,7 +130,153 @@
     </#list>
   </#list>
 
-  <#assign catNames = catMap?keys?sort>
+  <#-- =========================
+       PREFERRED CATEGORY ORDER
+       (controls Categories list + grouped item order)
+       ========================= -->
+
+  <#assign preferredOrder = [
+    "Clear 4mil Reclosable Bags",
+    "Clear 2mil Reclosable Bags",
+    "2mil Slider Bags",
+    "Clear 8mil Reclosable Bags",
+    "Clear 3mil Reclosable Bags",
+    "Clear 6mil Reclosable Bags",
+    "2mil Write-on White Block Reclosable Bags",
+    "4mil Write-on White Block Reclosable Bags",
+    "4mil Write-on Parts and Qty Reclosable Bags",
+    "2mil Hang Hole Reclosable Bags",
+    "4mil Hang Hole Reclosable Bags",
+    "2mil Crystal Clear (Polypropylene) Hang Hole Reclosable Bags",
+    "4mil Reinforced Grommet Reclosable Bags",
+    "2mil Vent Hole Reclosable Bags",
+    "2mil White Block Slider Bags",
+    "3mil Slider Bags",
+    "4mil Slider Bags",
+    "Drawstring Bags",
+    "Bubble Reclosable Bags",
+    "Recycle Logo Reclosable Bags",
+    "Suffocation Warning + Recycle Logo Reclosable Bags",
+    "Compostable Reclosable Bags",
+    "Split Compartment Reclosable Bags",
+    "Pouch Reclosable Bags",
+    "2mil Tamper Evident Reclosable Bags",
+    "3mil Tamper Evident Reclosable Bags",
+    "4mil Tamper Evident Reclosable Bags",
+    "Wicketed Tamper Evident Reclosable Bags",
+    "Die Cut Handle Reclosable Bags",
+    "Biodegradable Die Cut Handle Reclosable Bags",
+    "Colored Reclosable Bags",
+    "Tiny Colored Bags",
+    "Tiny Design Bags",
+    "UV Protective Amber Reclosable Bags",
+    "PRN Reclosable Bags",
+    "Refrigerate Reclosable Bags",
+    "Biohazard Specimen Reclosable Bags",
+    "Chemotherapy Drug Transport Reclosable Bags",
+    "Red Biohazard Waste Bags",
+    "Asbestos Hazard Bags",
+    "Pink Antistat Reclosable Bags",
+    "Metallic Static Shielding Reclosable Bags",
+    "Cigar Reclosable Bags",
+    "Resealable Lip & Tape with Suffocation Warning",
+    "Resealable Lip & Tape with Suffocation Warning and Vent Holes",
+    "Permanent Lip & Tape with Suffocation Warning",
+    "Bubble Lip & Tape",
+    "1.5mil Polypropylene Lip & Tape",
+    "1.6mil Polypropylene Lip & Tape",
+    "Poly Mailers",
+    "Economic Poly Mailers",
+    "Expansion Poly Mailers",
+    "Bubble Mailers",
+    "Perforated Poly Mailers",
+    "Returnable Poly Mailers",
+    "50% PCR Perforated Poly Mailers",
+    "100% PCR Poly Mailers",
+    "Clear Mailers",
+    "1mil Flat Poly Bags",
+    "1.25mil Flat Poly Bags",
+    "1.5mil Flat Poly Bags",
+    "2mil Flat Poly Bags",
+    "3mil Flat Poly Bags",
+    "4mil Flat Poly Bags",
+    "6mil Flat Poly Bags",
+    "8mil Flat Poly Bags",
+    "1.5mil Crystal Clear (Polypropylene) Poly Bags",
+    "1mil Suffocation Warning Poly Bags",
+    "2mil Suffocation Warning Poly Bags",
+    "2mil Pink Antistat Poly Bags",
+    "4mil Pink Antistat Poly Bags",
+    "1mil Gusseted Poly Bags (case)",
+    "1.25mil Gusseted Poly Bags (case)",
+    "1.5mil Gusseted Poly Bags (case)",
+    "2mil Gusseted Poly Bags (case)",
+    "3mil Gusseted Poly Bags (case)",
+    "1.5mil Crystal Clear (Polypropylene) Side Gusseted Bags",
+    "1.5mil Crystal Clear (Polypropylene) Bottom Gusseted Bags",
+    "1mil Gusseted Poly Bags (roll)",
+    "1.5mil Gusseted Poly Bags (roll)",
+    "2mil Gusseted Poly Bags (roll)",
+    "3mil Gusseted Poly Bags (roll)",
+    "4mil Gusseted Poly Bags (roll)",
+    "1.5mil Clear Pre-opened Bags (Automated Packaging)",
+    "2mil Clear Pre-opened Bags (Automated Packaging)",
+    "2mil White Front, Clear Back Pre-opened Bags (Automated Packaging)",
+    "Pallet Sheeting",
+    "1.5mil Poly Tubing Rolls",
+    "2mil Poly Tubing Rolls",
+    "3mil Poly Tubing Rolls",
+    "4mil Poly Tubing Rolls",
+    "6mil Poly Tubing Rolls",
+    "Tubing Dispensers",
+    "1.5mil Standard Mattress Bags",
+    "3mil Standard Mattress Bags",
+    "4mil Standard Mattress Bags",
+    "3mil Pillow Top Mattress Bags",
+    "4mil Pillow Top Mattress Bags",
+    "Clear Stand Up Pouches",
+    "Clear Front/Silver Back Stand Up Pouches",
+    "Bottom-Loading Barrier Zipper Pouches",
+    "Sandwich Bags",
+    "Vacuum Seal Bags",
+    "Bread Bags with Wickets",
+    "Deli Bags",
+    "Ice Bags",
+    "Silverware Bags",
+    "Clear Low-Density Merchandise Bags",
+    "White Low-Density Merchandise Bags",
+    "Frosted Low-Density Merchandise Bags",
+    "Magazine & Brochure Doorknob Hanging Bags",
+    "Garment Bags",
+    "Garbage Bags",
+    "Soiled Linen Laundry Bags",
+    "Clear Packing List Envelopes",
+    "Packing List Envelopes, Printed 'Packing List Enclosed'",
+    "Adhesive Press-on Reclosable Bags",
+    "Hang Tabs",
+    "Bag Sealing Tape Rolls",
+    "Packing Tape",
+    "Reinforced Brown Packing Tape, Water Activated",
+    "Twist Ties",
+    "Nylon Cable Ties",
+    "Closeout"
+  ]>
+
+  <#-- Build catNames in preferred order, but only if they exist in this run -->
+  <#assign catNames = []>
+  <#list preferredOrder as catName>
+    <#if catMap[catName]??>
+      <#assign catNames = catNames + [catName]>
+    </#if>
+  </#list>
+
+  <#-- Append any new/unlisted categories at the end (alphabetical for neatness) -->
+  <#assign allCatsSorted = catMap?keys?sort>
+  <#list allCatsSorted as k>
+    <#if !catNames?seq_contains(k)>
+      <#assign catNames = catNames + [k]>
+    </#if>
+  </#list>
 
   <span style="font-size: 18px"><b>Categories:</b></span>
 
@@ -166,6 +312,7 @@ without RoyalBag's prior written consent.</span>
           <td colspan="19" style="border: .5px solid black;"><b>${catName}</b></td>
         </tr>
 
+        <#-- Sort items inside each category by custitem_rb_item -->
         <#list (catMap[catName])?sort_by(["custitem_rb_item"]) as line>
           <tr>
             <td colspan="4" style="border: .5px solid gray;">${line.custitem_rb_item}</td>
