@@ -1,0 +1,185 @@
+<?xml version="1.0"?>
+<!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
+<pdf>
+<head>
+	<link name="NotoSans" type="font" subtype="truetype" src="${nsfont.NotoSans_Regular}" src-bold="${nsfont.NotoSans_Bold}" src-italic="${nsfont.NotoSans_Italic}" src-bolditalic="${nsfont.NotoSans_BoldItalic}" bytes="2" />
+	<#if .locale == "zh_CN">
+		<link name="NotoSansCJKsc" type="font" subtype="opentype" src="${nsfont.NotoSansCJKsc_Regular}" src-bold="${nsfont.NotoSansCJKsc_Bold}" bytes="2" />
+	<#elseif .locale == "zh_TW">
+		<link name="NotoSansCJKtc" type="font" subtype="opentype" src="${nsfont.NotoSansCJKtc_Regular}" src-bold="${nsfont.NotoSansCJKtc_Bold}" bytes="2" />
+	<#elseif .locale == "ja_JP">
+		<link name="NotoSansCJKjp" type="font" subtype="opentype" src="${nsfont.NotoSansCJKjp_Regular}" src-bold="${nsfont.NotoSansCJKjp_Bold}" bytes="2" />
+	<#elseif .locale == "ko_KR">
+		<link name="NotoSansCJKkr" type="font" subtype="opentype" src="${nsfont.NotoSansCJKkr_Regular}" src-bold="${nsfont.NotoSansCJKkr_Bold}" bytes="2" />
+	<#elseif .locale == "th_TH">
+		<link name="NotoSansThai" type="font" subtype="opentype" src="${nsfont.NotoSansThai_Regular}" src-bold="${nsfont.NotoSansThai_Bold}" bytes="2" />
+	</#if>
+
+    <macrolist>
+        <macro id="nlheader">
+            <table class="header" style="width: 100%;">
+                <tr>
+                    <td rowspan="5" style="width:37%;"><#if companyInformation.logoUrl?length != 0><@filecabinet nstype="image" src="${companyInformation.logoUrl}" style="float: left; margin: 7px;width:250px;height:70px;" /> </#if></td>
+	                <td rowspan="5" style="width:23%;border-left: 3px solid #c4c3c0;vertical-align: middle;padding-left:5px;">orders@royalbag.com<br />718-686-1120<br />www.royalbag.com</td>
+                    <td align="right"><span class="title">${record@title}</span></td>
+                </tr>
+                <tr></tr>
+            </table>
+        </macro>
+
+        <macro id="nlfooter">
+            <table class="footer" style="width: 100%;">
+                <tr>
+                    <td align="left">${record.trandate} - ${customer.pricelevel}</td>
+                    <td align="right"><pagenumber/> of <totalpages/></td>
+                </tr>
+            </table>
+        </macro>
+    </macrolist>
+
+    <style type="text/css">
+		* {
+		<#if .locale == "zh_CN">
+			font-family: NotoSans, NotoSansCJKsc, sans-serif;
+		<#elseif .locale == "zh_TW">
+			font-family: NotoSans, NotoSansCJKtc, sans-serif;
+		<#elseif .locale == "ja_JP">
+			font-family: NotoSans, NotoSansCJKjp, sans-serif;
+		<#elseif .locale == "ko_KR">
+			font-family: NotoSans, NotoSansCJKkr, sans-serif;
+		<#elseif .locale == "th_TH">
+			font-family: NotoSans, NotoSansThai, sans-serif;
+		<#else>
+			font-family: NotoSans, sans-serif;
+		</#if>
+		}
+		table {
+			font-size: 9pt;
+			table-layout: fixed;
+		}
+        th {
+            font-weight: bold;
+            font-size: 8pt;
+            vertical-align: middle;
+            padding: 5px 6px 3px;
+            background-color: #e3e3e3;
+            color: #333333;
+        }
+        td {
+            padding: 4px 6px;
+        }
+		td p { align:left }
+        b {
+            font-weight: bold;
+            color: #333333;
+        }
+        table.header td {
+            padding: 0;
+            font-size: 10pt;
+        }
+        table.footer td {
+            padding: 0;
+            font-size: 8pt;
+        }
+        table.itemtable {
+          border: 1px solid black;
+        }
+        table.itemtable th {
+            padding-bottom: 10px;
+            padding-top: 10px;
+        }
+        table.body td {
+            padding-top: 2px;
+        }
+        td.addressheader {
+            font-weight: bold;
+            font-size: 8pt;
+            padding-top: 6px;
+            padding-bottom: 2px;
+        }
+        td.address {
+            padding-top: 0px;
+        }
+        span.title {
+            font-size: 28pt;
+        }
+        span.itemname {
+            font-weight: bold;
+            line-height: 150%;
+        }
+        hr {
+            width: 100%;
+            color: #d3d3d3;
+            background-color: #d3d3d3;
+            height: 1px;
+        }
+    </style>
+</head>
+
+<body header="nlheader" header-height="10%" footer="nlfooter" footer-height="20pt" padding="0.3in 0.3in 0.1in 0.3in" size="Letter">
+
+  <#-- =========================
+       GROUP LINES BY CATEGORY
+       ========================= -->
+  <#assign catMap = {}>
+
+  <#list record.pricelevels as lines>
+    <#list lines as line>
+      <#assign cat = (line.custitem_rb_pl_category!"Uncategorized")?string?trim>
+      <#assign catMap = catMap + { (cat) : ( (catMap[cat])![] ) + [line] } >
+    </#list>
+  </#list>
+
+  <#assign catNames = catMap?keys?sort>
+
+  <span style="font-size: 18px"><b>Categories:</b></span>
+
+  <table style="width: 100%;">
+    <#list catNames as catName>
+      <tr>
+        <td style="border-bottom: .2px solid gray;font-size: 14px">${catName}</td>
+      </tr>
+    </#list>
+  </table>
+
+  <span style="font-size: 12px"><br /><b>Reminder:</b> Prices listed in this document are confidential, and shall not be disclosed to any third parties
+without RoyalBag's prior written consent.</span>
+
+  <pbr />
+
+  <table class="itemtable" style="width: 100%;">
+    <thead>
+      <tr>
+        <th align="center" colspan="4" style="border: .5px solid black;">Item ID</th>
+        <th align="center" colspan="6" style="border: .5px solid black;">Size</th>
+        <th align="center" colspan="3" style="border: .5px solid black;">UOM</th>
+        <th align="center" colspan="2" style="border: .5px solid black;">Price</th>
+        <th align="center" colspan="2" style="border: .5px solid black;">Per MC</th>
+        <th align="center" colspan="2" style="border: .5px solid black;">MC Weight</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <#list catNames as catName>
+
+        <tr>
+          <td colspan="19" style="border: .5px solid black;"><b>${catName}</b></td>
+        </tr>
+
+        <#list (catMap[catName])?sort_by(["custitem_rb_item"]) as line>
+          <tr>
+            <td colspan="4" style="border: .5px solid gray;">${line.custitem_rb_item}</td>
+            <td align="left" colspan="6" style="border: .5px solid gray;">${line.custitem_rb_size}</td>
+            <td align="left" colspan="3" style="border: .5px solid gray;">${line.units}</td>
+            <td align="right" colspan="2" style="border: .5px solid gray;">${line.rate}</td>
+            <td align="right" colspan="2" style="border: .5px solid gray;">${line.custitem_rb_per_mc}</td>
+            <td align="right" colspan="2" style="border: .5px solid gray;">${line.custitem_rb_mc_weight}</td>
+          </tr>
+        </#list>
+
+      </#list>
+    </tbody>
+  </table>
+
+</body>
+</pdf>
