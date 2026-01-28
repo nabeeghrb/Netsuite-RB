@@ -98,7 +98,7 @@ style="width: 100%; margin-top: 16px; border-collapse: separate; border-spacing:
 <td style="padding: 8px; text-align: left;">
 <span>${item.item}</span>
 <#if item.custcol_scm_customerpartnumber?has_content>
-<span><br />P/N: ${item.custcol_scm_customerpartnumber}</span>
+<span><br />CPN: ${item.custcol_scm_customerpartnumber}</span>
 </#if>
 </td>
 <td style="padding: 8px; border-left: 1px dashed black; text-align: center;">
