@@ -1,6 +1,5 @@
 /**
- * DEBUG: Split SO assembly lines based on location available qty (Linden),
- * copying units/price/rate to the shortage line, with verbose logging.
+ * DEBUG: Split for partial availability + set Create WO only for shortage.
  *
  * @NApiVersion 2.1
  * @NScriptType UserEventScript
@@ -18,28 +17,21 @@ define(['N/runtime', 'N/search', 'N/log'], (runtime, search, log) => {
   const COL_UNITS = 'units';
   const COL_PRICE = 'price';
   const COL_RATE = 'rate';
+  const COL_CREATE_WO = 'createwo'; // confirm internal id on your line
 
   // Script parameters
   const PARAM_LOCATION_ID = 'custscript_rb_linden_location_id';
   const PARAM_CUSTOMER_ID = 'custscript_rb_target_customer_id';
   const PARAM_SHIPMETHOD_ID = 'custscript_rb_target_shipmethod_id';
 
-  function safeGetSublistValue(rec, sublistId, fieldId, line) {
-    try {
-      return rec.getSublistValue({ sublistId, fieldId, line });
-    } catch (e) {
-      log.debug('safeGetSublistValue missing field', { fieldId, line, err: String(e) });
-      return null;
-    }
+  function safeGet(rec, sublistId, fieldId, line) {
+    try { return rec.getSublistValue({ sublistId, fieldId, line }); }
+    catch (e) { log.debug('safeGet failed', { fieldId, line, err: String(e) }); return null; }
   }
 
-  function safeSetSublistValue(rec, sublistId, fieldId, line, value) {
-    try {
-      if (value === null || value === '' || typeof value === 'undefined') return;
-      rec.setSublistValue({ sublistId, fieldId, line, value });
-    } catch (e) {
-      log.debug('safeSetSublistValue missing field', { fieldId, line, value, err: String(e) });
-    }
+  function safeSet(rec, sublistId, fieldId, line, value) {
+    try { rec.setSublistValue({ sublistId, fieldId, line, value }); }
+    catch (e) { log.debug('safeSet failed', { fieldId, line, value, err: String(e) }); }
   }
 
   function getLocationQtyAvailable(itemId, locationId) {
@@ -69,109 +61,119 @@ define(['N/runtime', 'N/search', 'N/log'], (runtime, search, log) => {
       typeTxt = r.getText('type') || '';
       return false;
     });
-    return String(typeTxt).toLowerCase().includes('assembly');
+    const isAsm = String(typeTxt).toLowerCase().includes('assembly');
+    return isAsm;
   }
 
   function beforeSubmit(context) {
-    log.debug('Auto Split DEBUG - Start', { type: context.type });
+    log.debug('START', { type: context.type, execContext: runtime.executionContext });
 
     if (context.type !== context.UserEventType.CREATE &&
         context.type !== context.UserEventType.EDIT) {
-      log.debug('Exit: not create/edit', context.type);
+      log.debug('EXIT not create/edit', context.type);
       return;
     }
 
     const rec = context.newRecord;
-
     const script = runtime.getCurrentScript();
+
     const lindenLocationId = script.getParameter({ name: PARAM_LOCATION_ID });
     const targetCustomerId = script.getParameter({ name: PARAM_CUSTOMER_ID });
     const targetShipMethodId = script.getParameter({ name: PARAM_SHIPMETHOD_ID });
 
-    log.debug('Params', { lindenLocationId, targetCustomerId, targetShipMethodId });
+    log.debug('PARAMS', { lindenLocationId, targetCustomerId, targetShipMethodId });
 
     if (!lindenLocationId || !targetCustomerId || !targetShipMethodId) {
-      log.debug('Exit: missing params', {});
+      log.debug('EXIT missing params', {});
       return;
     }
 
     const customerId = rec.getValue({ fieldId: FLD_CUSTOMER });
     const shipMethodId = rec.getValue({ fieldId: FLD_SHIPMETHOD });
 
-    log.debug('Header', { customerId, shipMethodId });
+    log.debug('HEADER', { customerId, shipMethodId });
 
     if (String(customerId) !== String(targetCustomerId)) {
-      log.debug('Exit: customer mismatch', { customerId, targetCustomerId });
+      log.debug('EXIT customer mismatch', { customerId, targetCustomerId });
       return;
     }
     if (String(shipMethodId) !== String(targetShipMethodId)) {
-      log.debug('Exit: ship method mismatch', { shipMethodId, targetShipMethodId });
+      log.debug('EXIT shipmethod mismatch', { shipMethodId, targetShipMethodId });
       return;
     }
 
     const lineCount = rec.getLineCount({ sublistId: SUBLIST });
-    log.debug('LineCount', lineCount);
+    log.debug('LINECOUNT', lineCount);
+    if (!lineCount) return;
 
+    // Bottom-up so insertLine doesn’t mess indexes
     for (let i = lineCount - 1; i >= 0; i--) {
-      const itemId = safeGetSublistValue(rec, SUBLIST, COL_ITEM, i);
-      const orderedQty = parseFloat(safeGetSublistValue(rec, SUBLIST, COL_QTY, i)) || 0;
+      const itemId = safeGet(rec, SUBLIST, COL_ITEM, i);
+      const orderedQty = parseFloat(safeGet(rec, SUBLIST, COL_QTY, i)) || 0;
 
-      log.debug('Line Snapshot', { line: i, itemId, orderedQty });
+      log.debug('LINE', { i, itemId, orderedQty });
 
-      if (!itemId || orderedQty <= 0) {
-        log.debug('Skip: missing item or qty', { line: i });
-        continue;
-      }
+      if (!itemId || orderedQty <= 0) continue;
 
-      const isAsm = isAssemblyItem(itemId);
-      if (!isAsm) {
-        log.debug('Skip: not assembly', { line: i, itemId });
+      const asm = isAssemblyItem(itemId);
+      if (!asm) {
+        log.debug('SKIP not assembly', { i, itemId });
         continue;
       }
 
       const available = getLocationQtyAvailable(itemId, lindenLocationId);
-      log.debug('Availability', { line: i, itemId, available });
+      log.debug('AVAIL', { i, itemId, available, orderedQty });
 
-      if (available <= 0) {
-        log.debug('No split: available <= 0', { line: i, itemId });
-        continue;
-      }
+      // enough inventory => ensure WO is off
       if (available >= orderedQty) {
-        log.debug('No split: enough available', { line: i, itemId, available, orderedQty });
+        safeSet(rec, SUBLIST, COL_CREATE_WO, i, false);
+        log.debug('DECISION', { i, action: 'no split, WO=false' });
         continue;
       }
 
+      // zero inventory => no split, WO=true
+      if (available <= 0) {
+        safeSet(rec, SUBLIST, COL_CREATE_WO, i, true);
+        log.debug('DECISION', { i, action: 'no split, WO=true (zero available)' });
+        continue;
+      }
+
+      // partial => split + WO only on shortage line
       const shortage = orderedQty - available;
 
-      const units = safeGetSublistValue(rec, SUBLIST, COL_UNITS, i);
-      const price = safeGetSublistValue(rec, SUBLIST, COL_PRICE, i);
-      const rate = safeGetSublistValue(rec, SUBLIST, COL_RATE, i);
+      const units = safeGet(rec, SUBLIST, COL_UNITS, i);
+      const price = safeGet(rec, SUBLIST, COL_PRICE, i);
+      const rate  = safeGet(rec, SUBLIST, COL_RATE, i);
 
-      log.debug('Copy Fields', { line: i, units, price, rate, shortage });
+      // Reduce original line to available qty and WO=false
+      safeSet(rec, SUBLIST, COL_QTY, i, available);
+      safeSet(rec, SUBLIST, COL_CREATE_WO, i, false);
 
-      // Reduce original line to available qty
-      safeSetSublistValue(rec, SUBLIST, COL_QTY, i, available);
-
-      // Insert shortage line
+      // Insert shortage line after current
       rec.insertLine({ sublistId: SUBLIST, line: i + 1 });
 
-      safeSetSublistValue(rec, SUBLIST, COL_ITEM, i + 1, itemId);
-      safeSetSublistValue(rec, SUBLIST, COL_QTY, i + 1, shortage);
-      safeSetSublistValue(rec, SUBLIST, COL_UNITS, i + 1, units);
-      safeSetSublistValue(rec, SUBLIST, COL_PRICE, i + 1, price);
-      safeSetSublistValue(rec, SUBLIST, COL_RATE, i + 1, rate);
+      safeSet(rec, SUBLIST, COL_ITEM, i + 1, itemId);
+      safeSet(rec, SUBLIST, COL_QTY, i + 1, shortage);
 
-      log.debug('Split Complete', {
-        originalLine: i,
-        shortageLine: i + 1,
-        itemId,
+      // Copy fields
+      if (units != null && units !== '') safeSet(rec, SUBLIST, COL_UNITS, i + 1, units);
+      if (price != null && price !== '') safeSet(rec, SUBLIST, COL_PRICE, i + 1, price);
+      if (rate  != null && rate  !== '') safeSet(rec, SUBLIST, COL_RATE,  i + 1, rate);
+
+      // shortage line => WO=true
+      safeSet(rec, SUBLIST, COL_CREATE_WO, i + 1, true);
+
+      log.debug('DECISION', {
+        i,
+        action: 'split',
         available,
-        orderedQty,
-        shortage
+        shortage,
+        woOriginal: false,
+        woShortage: true
       });
     }
 
-    log.debug('Auto Split DEBUG - End', {});
+    log.debug('END', {});
   }
 
   return { beforeSubmit };
