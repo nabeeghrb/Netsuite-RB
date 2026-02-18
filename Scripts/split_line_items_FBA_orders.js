@@ -68,9 +68,9 @@ define(['N/runtime', 'N/search', 'N/log'], (runtime, search, log) => {
   function beforeSubmit(context) {
     log.debug('START', { type: context.type, execContext: runtime.executionContext });
 
-    if (context.type !== context.UserEventType.CREATE &&
-        context.type !== context.UserEventType.EDIT) {
-      log.debug('EXIT not create/edit', context.type);
+    // Only run on CREATE, never on EDIT
+    if (context.type !== context.UserEventType.CREATE) {
+      log.debug('EXIT not CREATE', { type: context.type });
       return;
     }
 
