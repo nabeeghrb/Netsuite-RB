@@ -10,8 +10,15 @@
  *
  * Renders as a standalone full-page dashboard (no NetSuite header/nav).
  *
- *   GET <suitelet url>            the dashboard
- *   GET <suitelet url>&nocache=T  bypass the cache for this render
+ *   GET <suitelet url>                    the dashboard, as of today
+ *   GET <suitelet url>&mo=6&yr=2026        as of the end of that month
+ *   GET <suitelet url>&mode=trend          JSON: retention score by month end
+ *   GET <suitelet url>&nocache=T           bypass the cache for this render
+ *
+ * "As of" semantics: computed as though today were the last day of the selected
+ * month. Transactions after that date are excluded and the year buckets shift
+ * with it, so an earlier month reproduces what the dashboard said back then.
+ * Selecting the current month uses today's actual date.
  *
  * Self-contained: Chart.js 4.4.1 inlined, no CDN or webfont requests.
  * Customer names link to their NetSuite record. Times render in the viewer's zone.
@@ -157,16 +164,21 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
       return x[2] < y[2] ? -1 : x[2] > y[2] ? 1 : 0;
     }
 
-    var RETAINED = { growing:1, on_track:1, not_yet_due:1, new_2026:1, snoozed:1 };
+    var RETAINED = { growing:1, on_track:1, not_yet_due:1, new_cur:1, snoozed:1 };
     var AT_RISK = { significantly_overdue:1, gone:1, overdue:1 };
-    var STAT_ORDER = ['growing','on_track','new_2026','not_yet_due','declining_2026',
+    var STAT_ORDER = ['growing','on_track','new_cur','not_yet_due','declining',
                       'overdue','significantly_overdue','gone'];
-    var ALL_STATUSES = ['growing','on_track','new_2026','not_yet_due','snoozed','declining_2026',
-                        'overdue','significantly_overdue','gone','erratic','one_time_2025','one_time_old'];
+    var ALL_STATUSES = ['growing','on_track','new_cur','not_yet_due','snoozed','declining',
+                        'overdue','significantly_overdue','gone','erratic','one_time_recent','one_time_old'];
 
     /* ── main analysis ───────────────────────────────────────────────────── */
     function analyse(raw, TODAY) {
-      var MONTHS_2026 = Math.max(1, TODAY.getFullYear() === 2026 ? TODAY.getMonth() : 6);
+      /* Year buckets are RELATIVE to the as-of date, not hardcoded. Picking an
+         earlier period must compare that year against its own predecessor. */
+      var CUR_YEAR = TODAY.getFullYear();
+      var PREV_YEAR = CUR_YEAR - 1;
+      var MONTHS_2026 = Math.max(1, TODAY.getMonth());   /* completed months in CUR_YEAR */
+      var BASELINE_START_YEAR = 2023, BASELINE_CUTOVER_YEAR = 2025;
 
       /* exclusions in force today */
       var EX = [];
@@ -215,7 +227,8 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
       var invs = raw.invoices || [];
       for (i = 0; i < invs.length; i++) {
         var d0 = parseDate(invs[i].date);
-        if (!d0 || d0.getFullYear() > 2024) continue;
+        if (!d0 || d0.getFullYear() >= BASELINE_CUTOVER_YEAR) continue;
+        if (d0 > TODAY) continue;                 /* nothing after the as-of date */
         var c0 = String(invs[i].customer || '').trim().replace(/^C\d+\s+/, '');
         var r0 = String(invs[i].rep || 'Unknown').trim() || 'Unknown';
         if (c0) push(r0, c0, d0, amtOf(invs[i].amount));
@@ -223,7 +236,8 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
       var ords = raw.orders || [];
       for (i = 0; i < ords.length; i++) {
         var d1 = parseDate(ords[i].date);
-        if (!d1 || d1.getFullYear() < 2025) continue;
+        if (!d1 || d1.getFullYear() < BASELINE_CUTOVER_YEAR) continue;
+        if (d1 > TODAY) continue;                 /* nothing after the as-of date */
         var c1 = String(ords[i].customer || '').trim();
         var r1 = String(ords[i].rep || 'Unknown').trim() || 'Unknown';
         if (c1) push(r1, c1, d1, amtOf(ords[i].amount));
@@ -297,19 +311,23 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
         function yrRepr(y) {
           return revYear[y] === undefined ? '0' : pyFloatStr(pyround(revYear[y], 2));
         }
-        var rev2023 = pyround(revYear[2023] || 0, 2), rev2024 = pyround(revYear[2024] || 0, 2);
-        var rev2025 = pyround(revYear[2025] || 0, 2), rev2026 = pyround(revYear[2026] || 0, 2);
+        var rev2023 = pyround(revYear[PREV_YEAR - 1] || 0, 2);
+        var rev2024 = pyround(revYear[PREV_YEAR - 1] || 0, 2);
+        var rev2025 = pyround(revYear[PREV_YEAR] || 0, 2);
+        var rev2026 = pyround(revYear[CUR_YEAR] || 0, 2);
         var rev2026Ann = rev2026 > 0 ? pyround((rev2026 / MONTHS_2026) * 12, 2) : 0;
         var has2026 = rev2026 > 0, firstYear = firstOrder.getFullYear(), status;
+        var anyPrior = false;
+        for (var yk in revYear) if (+yk < CUR_YEAR && revYear[yk] > 0) anyPrior = true;
 
-        if (firstYear >= TODAY.getFullYear() && !(rev2025 > 0 || rev2024 > 0 || rev2023 > 0)) {
-          status = 'new_2026';
-        } else if (nOrders === 1 && firstYear === 2025) { status = 'one_time_2025';
+        if (firstYear >= CUR_YEAR && !anyPrior) {
+          status = 'new_cur';
+        } else if (nOrders === 1 && firstYear === PREV_YEAR) { status = 'one_time_recent';
         } else if (nOrders === 1) { status = 'one_time_old';
         } else if (has2026) {
           if (rev2025 > 0) {
             var ratio = rev2026Ann / rev2025;
-            status = ratio >= 1.15 ? 'growing' : ratio >= 0.70 ? 'on_track' : 'declining_2026';
+            status = ratio >= 1.15 ? 'growing' : ratio >= 0.70 ? 'on_track' : 'declining';
           } else status = 'on_track';
         } else {
           var monthsSince = dayDiff(lastOrder, TODAY) / 30.44;
@@ -322,7 +340,7 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
           } else status = monthsSince > 6 ? 'significantly_overdue' : 'overdue';
         }
         if (nActiveMonths >= 3 && cvGap > 1.0 && cvAmount > 1.0 &&
-            status !== 'new_2026' && status !== 'one_time_2025' && status !== 'one_time_old')
+            status !== 'new_cur' && status !== 'one_time_recent' && status !== 'one_time_old')
           status = 'erratic';
 
         var excl = excludedInfo(cname, rep);
@@ -397,7 +415,8 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
           cc[v.cadence] = (cc[v.cadence] || 0) + 1;
           for (var mo in v.monthly_rev) mt[mo] = (mt[mo] || 0) + v.monthly_rev[mo];
         }
-        var ry = { 2023:{}, 2024:{}, 2025:{}, 2026:{} };
+        var ry = {};
+        for (var yy = BASELINE_START_YEAR; yy <= CUR_YEAR; yy++) ry[yy] = {};
         for (mo in mt) {
           var yr = +mo.slice(0, 4), mn = +mo.slice(5, 7);
           if (ry[yr]) ry[yr][mn] = (ry[yr][mn] || 0) + mt[mo];
@@ -410,11 +429,12 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
             else if (v.expected_next >= nms && v.expected_next < nnms) nxt.push(v);
           }
           if (AT_RISK[v.status]) ar += v.rev_2025;
-          if (v.status === 'declining_2026') dg += Math.max(0, v.rev_2025 - v.rev_2026_ann);
+          if (v.status === 'declining') dg += Math.max(0, v.rev_2025 - v.rev_2026_ann);
           t26 += v.rev_2026_ytd; t25 += v.rev_2025;
         }
         function yearArr(y) {
-          var a = []; for (var m2 = 1; m2 <= 12; m2++) a.push(pyround(ry[y][m2] || 0, 2));
+          var a = [], src = ry[y] || {};
+          for (var m2 = 1; m2 <= 12; m2++) a.push(pyround(src[m2] || 0, 2));
           return a;
         }
         function cadArr(cad) {
@@ -442,7 +462,7 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
           overdue_n:(sc.overdue || 0) + (sc.significantly_overdue || 0),
           sig_n:sc.significantly_overdue || 0, nyd_n:sc.not_yet_due || 0,
           cin:cc.in_cadence || 0, cout:cc.out_of_cadence || 0, cno:cc.no_activity || 0,
-          rev_2023:yearArr(2023), rev_2024:yearArr(2024), rev_2025:yearArr(2025), rev_2026:yearArr(2026),
+          rev_years:(function(){ var o={}; for (var y3=BASELINE_START_YEAR; y3<=CUR_YEAR; y3++) o[y3]=yearArr(y3); return o; })(),
           cad_in:cadArr('in_cadence'), cad_out:cadArr('out_of_cadence'), cad_no:cadArr('no_activity'),
           exp_this:money0(expThis), due_n:due.length,
           exp_next:money0(expNext), next_n:nxt.length
@@ -515,7 +535,7 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
       for (i = 0; i < allCusts.length; i++) {
         var c = allCusts[i];
         if (AT_RISK[c.status]) atRiskTot += c.rev_2025;
-        if (c.status === 'declining_2026') decliningGap += Math.max(0, c.rev_2025 - c.rev_2026_ann);
+        if (c.status === 'declining') decliningGap += Math.max(0, c.rev_2025 - c.rev_2026_ann);
         total2025 += c.rev_2025; total2026 += c.rev_2026_ytd;
         statusCounts[c.status] = (statusCounts[c.status] || 0) + 1;
         cadenceCounts[c.cadence] = (cadenceCounts[c.cadence] || 0) + 1;
@@ -631,6 +651,7 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
 
       return {
         TODAY:TODAY, MONTHS_2026:MONTHS_2026, rep_name:raw.rep_name || 'Rep',
+        CUR_YEAR:CUR_YEAR, PREV_YEAR:PREV_YEAR, BASELINE_START_YEAR:BASELINE_START_YEAR,
         customers:customers, custOrder:custOrder, allCusts:allCusts,
         composite:mainRet.comp, acct_pct:mainRet.ap, rev_pct:mainRet.rp,
         materially_active:mainRet.ma.length, retained:mainRet.ret.length,
@@ -661,12 +682,16 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
     'use strict';
 
     var STATUS_COLORS = {gone:'#c0392b',significantly_overdue:'#e74c3c',overdue:'#e67e22',
-      growing:'#27ae60',on_track:'#2980b9',declining_2026:'#8e44ad',not_yet_due:'#16a085',
-      new_2026:'#3498db',erratic:'#d35400',one_time_2025:'#7f8c8d',one_time_old:'#7f8c8d',snoozed:'#95a5a6'};
-    var STATUS_LABELS = {gone:'Gone',significantly_overdue:'Sig. Overdue',overdue:'Overdue',
-      growing:'Growing',on_track:'On Track',declining_2026:'Declining',not_yet_due:'Not Yet Due',
-      new_2026:'New 2026',erratic:'Erratic',one_time_2025:'One-Time 2025',
-      one_time_old:'One-Time (Old)',snoozed:'Snoozed'};
+      growing:'#27ae60',on_track:'#2980b9',declining:'#8e44ad',not_yet_due:'#16a085',
+      new_cur:'#3498db',erratic:'#d35400',one_time_recent:'#7f8c8d',one_time_old:'#7f8c8d',snoozed:'#95a5a6'};
+    /* Labels carry the year, so they are built per render from the as-of date. */
+    var STATUS_LABELS = {};
+    function buildLabels(curYear, prevYear) {
+      STATUS_LABELS = {gone:'Gone',significantly_overdue:'Sig. Overdue',overdue:'Overdue',
+        growing:'Growing',on_track:'On Track',declining:'Declining',not_yet_due:'Not Yet Due',
+        new_cur:'New ' + curYear,erratic:'Erratic',one_time_recent:'One-Time ' + prevYear,
+        one_time_old:'One-Time (Old)',snoozed:'Snoozed'};
+    }
     var CADENCE_COLORS = {in_cadence:'#27ae60',out_of_cadence:'#e67e22',no_activity:'#7f8c8d'};
     var CADENCE_LABELS = {in_cadence:'In Cadence',out_of_cadence:'Out of Cadence',no_activity:'No Activity'};
     var ALL_ST = C.ALL_STATUSES;
@@ -736,6 +761,9 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
 
     function build(A, opts) {
       opts = opts || {};
+      var CUR = A.CUR_YEAR, PREV = A.PREV_YEAR;
+      var YEARS = []; for (var yy = A.BASELINE_START_YEAR; yy <= CUR; yy++) YEARS.push(yy);
+      buildLabels(CUR, PREV);
       var TODAY = A.TODAY, cust = A.customers, all = A.allCusts;
       var monthYear = strftimeB(TODAY);
       var sc = A.status_counts, cc = A.cadence_counts;
@@ -762,11 +790,11 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
       var composite = A.composite;
       var health = composite >= 70 ? 'Healthy' : composite >= 50 ? 'Needs Attention' : 'At Risk';
       var summary = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:12px;margin-bottom:18px">' +
-        tile('2025 Total', aggspan('total_2025', fm(A.total_2025), 'money')) +
-        tile('2026 YTD', aggspan('total_2026_ytd', fm(A.total_2026_ytd), 'money'),
+        tile(PREV + ' Total', aggspan('total_2025', fm(A.total_2025), 'money')) +
+        tile(CUR + ' YTD', aggspan('total_2026_ytd', fm(A.total_2026_ytd), 'money'),
              'Ann: ' + aggspan('total_2026_ann', fm(A.total_2026_ann), 'money')) +
-        tile('Revenue At Risk', aggspan('at_risk', fm(A.at_risk), 'money'), "Overdue+gone accounts' 2025", true) +
-        tile('Declining Gap', aggspan('declining_gap', fm(A.declining_gap), 'money'), 'Pace vs 2025', true) +
+        tile('Revenue At Risk', aggspan('at_risk', fm(A.at_risk), 'money'), "Overdue+gone accounts' " + PREV, true) +
+        tile('Declining Gap', aggspan('declining_gap', fm(A.declining_gap), 'money'), 'Pace vs ' + PREV, true) +
         tile('Total Exposure', aggspan('total_exposure', fm(A.total_exposure), 'money'), '', true) +
         tile('Retention Score', aggspan('composite', pyFloat(composite), 'num') + '/100', aggspan('__health__', health, 'text')) +
         tile('Overdue', aggspan('overdue_n', String((sc.overdue || 0) + (sc.significantly_overdue || 0)), 'int'),
@@ -803,6 +831,16 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
         '</div>' +
         '<div style="font-size:12px;color:#9e9086"><span id="retMA">' + A.materially_active + '</span> materially active customers &nbsp;|&nbsp; <span id="retRET">' + A.retained + '</span> retained</div>' +
         '</div>';
+      if (opts.trend || opts.trendAsync) {
+        ret += '<div style="background:#fff;border:1px solid #e2ddd6;border-radius:10px;padding:22px">' +
+          '<div style="font-size:15px;font-weight:700;margin-bottom:4px;font-family:Georgia,serif">' +
+          'Retention Score Trend</div>' +
+          '<div style="font-size:12px;color:#9e9086;margin-bottom:14px">Score at each month end. ' +
+          'Follows the pod / rep selection.</div>' +
+          '<div id="retChartMsg" style="font-size:12px;color:#9e9086;padding:10px 0">' +
+          (opts.trendAsync ? 'Loading trend\u2026' : '') + '</div>' +
+          '<canvas id="retChart" height="78"></canvas></div>';
+      }
 
       /* ── By Pod ── */
       var bypod = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px">';
@@ -811,7 +849,7 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
         bypod += '<div style="background:#fff;border:1px solid #e2ddd6;border-radius:10px;border-top:3px solid ' + col + ';padding:18px">' +
           '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><div style="font-size:16px;font-weight:700;font-family:Georgia,serif">' + ps.pod + '</div>' +
           '<div style="font-size:26px;font-weight:800;color:' + col + '">' + pyFloat(ag.composite) + '<span style="font-size:13px;color:#9e9086">/100</span></div></div>' +
-          '<div style="font-size:12px;color:#6b6460;margin-bottom:10px">2025 ' + fm(ag.total_2025) + ' &nbsp;\u00b7&nbsp; ' + ag.ma + ' active &nbsp;\u00b7&nbsp; At risk <b style="color:#c8490c">' + fm(ag.at_risk) + '</b> &nbsp;\u00b7&nbsp; ' + fm(ag.exp_this) + ' due this month</div>';
+          '<div style="font-size:12px;color:#6b6460;margin-bottom:10px">' + PREV + ' ' + fm(ag.total_2025) + ' &nbsp;\u00b7&nbsp; ' + ag.ma + ' active &nbsp;\u00b7&nbsp; At risk <b style="color:#c8490c">' + fm(ag.at_risk) + '</b> &nbsp;\u00b7&nbsp; ' + fm(ag.exp_this) + ' due this month</div>';
         for (j = 0; j < ps.reps.length; j++) {
           var rp = ps.reps[j], ra = A.VIEW_AGG['REP::' + rp] || {};
           var rc = scoreCol(ra.composite || 0);
@@ -825,32 +863,32 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
       bypod += '</div>';
 
       /* ── Revenue chart + table ── */
-      var revYrs = {2023:{},2024:{},2025:{},2026:{}};
+      var revYrs = {}; for (var y0 = 0; y0 < YEARS.length; y0++) revYrs[YEARS[y0]] = {};
       for (var mo in A.monthly_totals) {
         var yr = +mo.slice(0, 4), mn = +mo.slice(5, 7);
         if (revYrs[yr]) revYrs[yr][mn] = (revYrs[yr][mn] || 0) + A.monthly_totals[mo];
       }
       var ct = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="padding:6px 8px;text-align:left;border-bottom:2px solid #e2ddd6;color:#9e9086;font-weight:600">Month</th>';
-      var YRS = [2023, 2024, 2025, 2026];
+      var YRS = YEARS;
       for (i = 0; i < YRS.length; i++)
         ct += '<th style="padding:6px 8px;text-align:right;border-bottom:2px solid #e2ddd6;color:#9e9086;font-weight:600">' + YRS[i] + '</th>';
       ct += '</tr></thead><tbody>';
       for (i = 0; i < 12; i++) {
         ct += '<tr style="border-bottom:1px solid #f0ece7"><td style="padding:6px 8px;font-weight:500">' + C.MONTHS_SHORT[i] + '</td>';
         for (j = 0; j < YRS.length; j++) {
-          var vv = revYrs[YRS[j]][i + 1] || 0;
+          var vv = (revYrs[YRS[j]] || {})[i + 1] || 0;
           ct += '<td style="padding:6px 8px;text-align:right;' + (vv > 0 ? 'color:#c8490c;font-weight:600' : 'color:#ccc') + '">' + (vv > 0 ? fm(vv) : '\u2014') + '</td>';
         }
         ct += '</tr>';
       }
       ct += '</tbody></table></div>';
       var chart = '<div style="background:#fff;border:1px solid #e2ddd6;border-radius:10px;padding:22px;margin-bottom:14px">' +
-        '<div style="font-size:15px;font-weight:700;margin-bottom:14px;font-family:Georgia,serif">Monthly Revenue 2023\u20132026</div>' +
+        '<div style="font-size:15px;font-weight:700;margin-bottom:14px;font-family:Georgia,serif">Monthly Revenue ' + YEARS[0] + '\u2013' + YEARS[YEARS.length-1] + '</div>' +
         '<canvas id="revChart" height="90" style="margin-bottom:14px"></canvas>' +
         '<details><summary style="cursor:pointer;font-size:12px;color:#9e9086">View as table</summary>' + ct + '</details></div>';
 
       /* ── Risk cards ── */
-      var RISK = {significantly_overdue:1,gone:1,overdue:1,declining_2026:1};
+      var RISK = {significantly_overdue:1,gone:1,overdue:1,declining:1};
       var rev25s = [];
       for (i = 0; i < all.length; i++) if (all[i].rev_2025 > 0) rev25s.push(all[i].rev_2025);
       rev25s.sort(function (a, b) { return a - b; });
@@ -866,12 +904,12 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
           desc = 'Expected reorder ' + fd(c.expected_next) + ' (avg gap ' + (c.avg_gap === null ? '?' : (c.avg_gap_int ? String(c.avg_gap) : pyFloat(c.avg_gap))) + ' mo). ' + C.pyround(c.months_overdue || 0) + ' months past due.';
         else if (c.status === 'gone') desc = 'Last order ' + fd(c.last_order) + '. No activity >12 months.';
         else if (c.status === 'overdue') desc = 'Expected ' + fd(c.expected_next) + '. About ' + C.pyround(c.months_overdue || 0) + ' month(s) overdue.';
-        else if (c.status === 'declining_2026')
-          desc = 'Pacing ' + fm(c.rev_2026_ann) + ' ann. vs ' + fm(c.rev_2025) + ' in 2025. Gap: ' + fm(Math.max(0, (c.rev_2025 || 0) - (c.rev_2026_ann || 0))) + '.';
+        else if (c.status === 'declining')
+          desc = 'Pacing ' + fm(c.rev_2026_ann) + ' ann. vs ' + fm(c.rev_2025) + ' in ' + PREV + '. Gap: ' + fm(Math.max(0, (c.rev_2025 || 0) - (c.rev_2026_ann || 0))) + '.';
         risk += '<div class="ownrow" data-rep="' + noq(c.rep) + '" style="background:#fff;border:1px solid #e2ddd6;border-radius:10px;padding:14px;border-left:4px solid ' + (STATUS_COLORS[c.status] || '#e74c3c') + '">' +
           '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">' +
           '<div style="font-weight:700;font-size:13px">' + c.name + reptag(c.rep) + notetag(c.context_note) + '</div>' + sbadge(c.status) + '</div>' +
-          '<div style="font-size:12px;color:#6b6460;margin-bottom:6px">2025: ' + fm(c.rev_2025) + ' &nbsp; 2026 YTD: ' + fm(c.rev_2026_ytd) + '</div>' +
+          '<div style="font-size:12px;color:#6b6460;margin-bottom:6px">' + PREV + ': ' + fm(c.rev_2025) + ' &nbsp; ' + CUR + ' YTD: ' + fm(c.rev_2026_ytd) + '</div>' +
           '<div style="font-size:12px;color:#4a4540;margin-bottom:8px;line-height:1.5">' + desc + '</div>' +
           '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">' + cbadge(c.cadence) +
           '<span style="font-size:11px;color:#9e9086">' + (c.last_activity_date ? fd(c.last_activity_date) : 'No activity logged') + '</span></div></div>';
@@ -909,10 +947,10 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
         '<div style="overflow:auto;border:1px solid #e2ddd6;border-radius:10px;height:calc(100vh - 260px);min-height:360px">' +
         '<table id="custT" class="dtbl sortable"><thead><tr>';
       var TH = 'style="text-align:left;position:sticky;top:0;z-index:2;cursor:pointer"';
-      var HDRS = ['Customer','Rep','Status','2025 Rev','2026 YTD','2026 Ann.','Last Order','Exp. Next','Cadence','Last Activity','Notes'];
+      var HDRS = ['Customer','Rep','Status',PREV+' Rev',CUR+' YTD',CUR+' Ann.','Last Order','Exp. Next','Cadence','Last Activity','Notes'];
       for (i = 0; i < HDRS.length; i++) {
         var h = HDRS[i];
-        var tr = (h === '2025 Rev' || h === '2026 YTD' || h === '2026 Ann.')
+        var tr = (h === PREV+' Rev' || h === CUR+' YTD' || h === CUR+' Ann.')
           ? TH.replace('text-align:left', 'text-align:right') : TH;
         table += '<th ' + tr + '>' + h + '<span class="sarw" style="opacity:.35;font-size:9px"> \u21c5</span></th>';
       }
@@ -922,9 +960,9 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
       function dueTable(list) {
         if (!list.length) return '<p style="color:#9e9086;font-size:13px">None expected this period.</p>';
         var h2 = '<div style="overflow:auto;max-height:62vh;border:1px solid #f0ece7;border-radius:8px"><table class="dtbl sortable"><thead><tr>';
-        var COLS = ['Customer','Rep','Status','Last Order','Exp. Date','Expected $','2025 Rev','2026 YTD','Avg Gap','Cadence','Last Activity','Notes'];
+        var COLS = ['Customer','Rep','Status','Last Order','Exp. Date','Expected $',PREV+' Rev',CUR+' YTD','Avg Gap','Cadence','Last Activity','Notes'];
         for (var k = 0; k < COLS.length; k++) {
-          var al = (COLS[k] === 'Expected $' || COLS[k] === '2025 Rev' || COLS[k] === '2026 YTD') ? 'text-align:right;' : 'text-align:left;';
+          var al = (COLS[k] === 'Expected $' || COLS[k] === PREV+' Rev' || COLS[k] === CUR+' YTD') ? 'text-align:right;' : 'text-align:left;';
           h2 += '<th style="' + al + 'position:sticky;top:0;z-index:2;cursor:pointer">' + COLS[k] + '<span class="sarw" style="opacity:.35;font-size:9px"> \u21c5</span></th>';
         }
         h2 += '</tr></thead><tbody>';
@@ -1087,13 +1125,13 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
           sched += '<div class="pri-hdr hi">&#9888; HIGH PRIORITY &mdash; Call These First</div>';
           for (j = 0; j < hi.length; j++)
             sched += acCard(hi[j], 'c' + wi + 'h' + j, { reason: hi[j].reason, rev: hi[j].rev_2025,
-              revLbl: '2025 rev', note: (cust[hi[j].key] || {}).context_note });
+              revLbl: PREV + ' rev', note: (cust[hi[j].key] || {}).context_note });
         }
         if (md.length) {
           sched += '<div class="pri-hdr md">&#x25cf; EXPECTED ORDERS &mdash; Touch Base</div>';
           for (j = 0; j < md.length; j++)
             sched += acCard(md[j], 'c' + wi + 'm' + j, { reason: md[j].reason, rev: md[j].rev_2025,
-              revLbl: '2025 rev', note: (cust[md[j].key] || {}).context_note });
+              revLbl: PREV + ' rev', note: (cust[md[j].key] || {}).context_note });
         }
         sched += '<div class="sec-pad"></div></div></div>';
       }
@@ -1132,7 +1170,7 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
           var e2 = entries[j], rw = e2.c;
           week += acCard(rw, 'wd' + di + 'i' + j, { reason: e2.reason, rev: rw.expected_value,
             revLbl: 'expected reorder', prio: e2.priority, note: rw.context_note, noKey: true,
-            sub: '<div style="font-size:11px;color:#9e9086;margin-bottom:6px">2025: ' + fm(rw.rev_2025) + '</div>' });
+            sub: '<div style="font-size:11px;color:#9e9086;margin-bottom:6px">' + PREV + ': ' + fm(rw.rev_2025) + '</div>' });
         }
         week += '<div class="sec-pad"></div></div></div>';
       }
@@ -1145,7 +1183,7 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
       var cad = '<div style="background:#fff;border:1px solid #e2ddd6;border-radius:10px;padding:20px;margin-bottom:14px"><div style="font-size:15px;font-weight:700;margin-bottom:12px;font-family:Georgia,serif">Cadence by Status</div><canvas id="cadChart" height="80"></canvas></div>' +
         '<div style="background:#fff;border:1px solid #e2ddd6;border-radius:10px;padding:20px"><div style="font-size:15px;font-weight:700;margin-bottom:12px;font-family:Georgia,serif">Top Out-of-Cadence Accounts</div>' +
         '<div style="overflow:auto;max-height:62vh;border:1px solid #f0ece7;border-radius:8px"><table class="dtbl sortable"><thead><tr>';
-      var CH = ['Customer','Rep','Status','2025 Rev','Last Activity','Notes','Exp. Next'];
+      var CH = ['Customer','Rep','Status',PREV+' Rev','Last Activity','Notes','Exp. Next'];
       for (i = 0; i < CH.length; i++)
         cad += '<th style="text-align:left;position:sticky;top:0;z-index:2;cursor:pointer">' + CH[i] + '<span class="sarw" style="opacity:.35;font-size:9px"> \u21c5</span></th>';
       cad += '</tr></thead><tbody>';
@@ -1166,7 +1204,7 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
       var byrep = '<div style="background:#f0f8ff;border:1px solid #aed6f1;border-radius:8px;padding:10px 14px;font-size:12px;color:#1a5276;margin-bottom:14px">Sorted lowest score first \u2014 reps who need the most attention appear at the top.</div>' +
         '<div style="overflow-x:auto"><table class="dtbl"><thead><tr>' +
         '<th>Rep</th><th>Score</th><th class="num" style="text-align:right">Accounts</th>' +
-        '<th class="num" style="text-align:right">2025 Revenue</th><th class="num" style="text-align:right">Revenue at Risk</th>' +
+        '<th class="num" style="text-align:right">' + PREV + ' Revenue</th><th class="num" style="text-align:right">Revenue at Risk</th>' +
         '<th class="num" style="text-align:right">Overdue Accts</th><th class="num" style="text-align:right">Expected This Month</th>' +
         '<th class="num" style="text-align:right">Accts Due</th></tr></thead><tbody>';
       for (i = 0; i < A.repStats.length; i++) {
@@ -1209,7 +1247,7 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
         '.dtbl tbody tr:hover{background:#fdf1e6}' +
         '.pnl{display:none;padding:20px 24px}.pnl.on{display:block}</style></head><body>' +
         '<div class="hdr"><div><div class="sub">RETENTION DASHBOARD &mdash; LIVE FROM NETSUITE</div><h1>' + A.rep_name + ' &mdash; ' + monthYear + '</h1></div>' +
-        '<div style="color:#9e9086;font-size:12px" id="gen-stamp">' + (opts.stamp || ('Generated ' + C.MONTHS_LONG[TODAY.getMonth()] + ' ' + pad2(TODAY.getDate()) + ', ' + TODAY.getFullYear())) + '</div></div>' +
+        '<div style="color:#9e9086;font-size:12px" id="gen-stamp">' + (opts.stamp || ('Generated ' + C.MONTHS_LONG[TODAY.getMonth()] + ' ' + pad2(TODAY.getDate()) + ', ' + TODAY.getFullYear())) + '</div></div>' + (opts.filterBar || '') +
         '<div class="nav">' +
         '<button class="on" onclick="show(\'summary\',this)">Summary</button>' +
         '<button onclick="show(\'retention\',this)">Retention Score</button>' +
@@ -1263,11 +1301,70 @@ define(['N/query', 'N/cache', 'N/log'], function (query, cache, log) {
         'function parseCell(t){t=(t||"").trim();if(t===""||t==="\u2014")return{n:-Infinity,s:""};var m=t.replace(/[$,]/g,"");if(/^-?\\d+(\\.\\d+)?$/.test(m))return{n:parseFloat(m),s:t.toLowerCase()};var d=t.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})/);if(d)return{n:new Date(+d[3],+d[1]-1,+d[2]).getTime(),s:t};return{n:NaN,s:t.toLowerCase()};}' +
         'function sortTable(t,idx,th){var tb=t.tBodies[0];if(!tb)return;var rows=[].slice.call(tb.rows).filter(function(r){return !r.classList.contains("totalrow");});var totals=[].slice.call(tb.rows).filter(function(r){return r.classList.contains("totalrow");});var pk=rows.map(function(r){return parseCell((r.cells[idx]||{}).textContent);});var allNum=pk.some(function(x){return !isNaN(x.n)&&x.n!==-Infinity;})&&pk.every(function(x){return !isNaN(x.n);});var same=t._sc===idx;var dir=same?-t._sd:(allNum?-1:1);rows.sort(function(a,b){var av=parseCell((a.cells[idx]||{}).textContent),bv=parseCell((b.cells[idx]||{}).textContent);if(allNum)return (av.n-bv.n)*dir;return (av.s<bv.s?-1:av.s>bv.s?1:0)*dir;});rows.forEach(function(r){tb.appendChild(r);});totals.forEach(function(r){tb.appendChild(r);});t._sc=idx;t._sd=dir;var hs=th.parentElement.children;for(var i=0;i<hs.length;i++){var ar=hs[i].querySelector(".sarw");if(ar){ar.textContent=" \\u21c5";ar.style.opacity=".35";}}var a2=th.querySelector(".sarw");if(a2){a2.textContent=dir<0?" \\u2193":" \\u2191";a2.style.opacity="1";}}' +
         'document.querySelectorAll("table.sortable").forEach(function(t){var hr=t.tHead&&t.tHead.rows[0];if(!hr)return;[].slice.call(hr.cells).forEach(function(th,idx){th.addEventListener("click",function(){sortTable(t,idx,th);});});});' +
-        'function buildRevChart(a){try{var c=document.getElementById("revChart");if(!c||typeof Chart==="undefined")return;if(window._revC)window._revC.destroy();window._revC=new Chart(c.getContext("2d"),{type:"bar",data:{labels:' + JSON.stringify(C.MONTHS_SHORT) + ',datasets:[{label:"2023",data:a.rev_2023,backgroundColor:"#b8c8e8",borderRadius:3},{label:"2024",data:a.rev_2024,backgroundColor:"#b8a9d4",borderRadius:3},{label:"2025",data:a.rev_2025,backgroundColor:"#2d6a4f",borderRadius:3},{label:"2026",data:a.rev_2026,backgroundColor:"#e55d1e",borderRadius:3}]},options:{responsive:true,plugins:{legend:{position:"top"}},scales:{y:{ticks:{callback:function(v){return "$"+Math.round(v/1000)+"k";}}}}}});}catch(e){}}' +
+        'function buildRevChart(a){try{var c=document.getElementById("revChart");if(!c||typeof Chart==="undefined")return;if(window._revC)window._revC.destroy();var YRS=' + JSON.stringify(YEARS) + ';var PAL=["#b8c8e8","#b8a9d4","#2d6a4f","#e55d1e","#c8490c"];var ds=YRS.map(function(y,i){return {label:String(y),data:(a.rev_years||{})[y]||[],backgroundColor:PAL[(PAL.length-YRS.length+i+PAL.length)%PAL.length],borderRadius:3};});window._revC=new Chart(c.getContext("2d"),{type:"bar",data:{labels:' + JSON.stringify(C.MONTHS_SHORT) + ',datasets:ds},options:{responsive:true,plugins:{legend:{position:"top"}},scales:{y:{ticks:{callback:function(v){return "$"+Math.round(v/1000)+"k";}}}}}});}catch(e){}}' +
         'function buildCadChart(a){try{var c=document.getElementById("cadChart");if(!c||typeof Chart==="undefined")return;if(window._cadC)window._cadC.destroy();window._cadC=new Chart(c.getContext("2d"),{type:"bar",data:{labels:CADLBL,datasets:[{label:"In Cadence",data:a.cad_in,backgroundColor:"#27ae60",borderRadius:3},{label:"Out of Cadence",data:a.cad_out,backgroundColor:"#e67e22",borderRadius:3},{label:"No Activity",data:a.cad_no,backgroundColor:"#7f8c8d",borderRadius:3}]},options:{responsive:true,plugins:{legend:{position:"top"}},scales:{x:{stacked:true},y:{stacked:true,ticks:{precision:0}}}}});}catch(e){}}' +
         '(function(){var rows=document.querySelectorAll("#custTbody tr");var el=document.getElementById("tblCnt");if(el)el.textContent=rows.length+" customers";})();' +
         'function tc(id){var card=document.getElementById(id);var lbl=document.getElementById("l"+id);var cb=lbl.querySelector("input");if(card.classList.contains("done")){card.classList.remove("done");lbl.classList.remove("ck");cb.checked=false;}else{card.classList.add("done");lbl.classList.add("ck");cb.checked=true;}}' +
-        '<\/script>' + (opts.beforeBodyEnd || '') + '</body></html>';
+        '<\/script>' +
+        (opts.trendAsync ? ('<script>' +
+          'var TREND=null,TREND_KEY=' + JSON.stringify(opts.trendKey || '') + ',TREND_BUSY=false;' +
+          /* A completed month's score never changes, so the series is fetched once
+             per page and clipped to the as-of month client-side. */
+          'function clipTrend(t){var n=t.keys.length;' +
+          'for(var i=0;i<t.keys.length;i++){if(TREND_KEY&&t.keys[i]>TREND_KEY){n=i;break;}}' +
+          'var o={labels:t.labels.slice(0,n),series:{}};' +
+          'for(var v in t.series){o.series[v]={composite:t.series[v].composite.slice(0,n),' +
+          'acct:t.series[v].acct.slice(0,n),rev:t.series[v].rev.slice(0,n)};}return o;}' +
+          'function msg(t){var e=document.getElementById("retChartMsg");if(e)e.textContent=t;}' +
+          'function loadTrend(){if(TREND_BUSY)return;TREND_BUSY=true;msg("Loading trend\u2026");' +
+          'var u=new URL(window.location.href);u.searchParams.set("mode","trend");' +
+          'fetch(u.toString(),{credentials:"same-origin"}).then(function(r){return r.json();})' +
+          '.then(function(j){TREND=clipTrend(j);TREND_BUSY=false;msg("");buildRetChart();})' +
+          '.catch(function(){TREND_BUSY=false;msg("Trend unavailable \u2014 could not load history.");});}' +
+          'function buildRetChart(){if(!TREND){loadTrend();return;}try{' +
+          'var c=document.getElementById("retChart");if(!c||typeof Chart==="undefined")return;' +
+          'var v=curView();var s=TREND.series[v]||TREND.series["__ALL__"];if(!s)return;' +
+          'if(window._retC)window._retC.destroy();' +
+          'window._retC=new Chart(c.getContext("2d"),{type:"line",data:{labels:TREND.labels,' +
+          'datasets:[{label:"Retention score",data:s.composite,borderColor:"#c8490c",' +
+          'backgroundColor:"rgba(200,73,12,.10)",borderWidth:2.5,fill:true,tension:.3,' +
+          'pointRadius:3,pointBackgroundColor:"#c8490c"},' +
+          '{label:"Account retention %",data:s.acct,borderColor:"#2980b9",borderWidth:1.5,' +
+          'fill:false,tension:.3,pointRadius:0,borderDash:[5,4]},' +
+          '{label:"Revenue retention %",data:s.rev,borderColor:"#27ae60",borderWidth:1.5,' +
+          'fill:false,tension:.3,pointRadius:0,borderDash:[5,4]}]},' +
+          'options:{responsive:true,interaction:{mode:"index",intersect:false},' +
+          'plugins:{legend:{position:"top"}},' +
+          'scales:{y:{min:0,max:100,ticks:{stepSize:20}}}}});' +
+          '}catch(e){}}' +
+          '(function(){var _s=window.show;window.show=function(id,btn){_s(id,btn);' +
+          'if(id==="retention")buildRetChart();};' +
+          'var _a=window.applyView;window.applyView=function(v){_a(v);' +
+          'if(TREND&&document.getElementById("p-retention").classList.contains("on"))buildRetChart();};})();' +
+          '<\/script>') : '') +
+        (opts.trend ? ('<script>' +
+          'var TREND=' + JSON.stringify(opts.trend) + ';' +
+          'function buildRetChart(){try{' +
+          'var c=document.getElementById("retChart");if(!c||typeof Chart==="undefined")return;' +
+          'var v=curView();var s=TREND.series[v]||TREND.series["__ALL__"];if(!s)return;' +
+          'if(window._retC)window._retC.destroy();' +
+          'window._retC=new Chart(c.getContext("2d"),{type:"line",data:{labels:TREND.labels,' +
+          'datasets:[{label:"Retention score",data:s.composite,borderColor:"#c8490c",' +
+          'backgroundColor:"rgba(200,73,12,.10)",borderWidth:2.5,fill:true,tension:.3,' +
+          'pointRadius:3,pointBackgroundColor:"#c8490c"},' +
+          '{label:"Account retention %",data:s.acct,borderColor:"#2980b9",borderWidth:1.5,' +
+          'fill:false,tension:.3,pointRadius:0,borderDash:[5,4]},' +
+          '{label:"Revenue retention %",data:s.rev,borderColor:"#27ae60",borderWidth:1.5,' +
+          'fill:false,tension:.3,pointRadius:0,borderDash:[5,4]}]},' +
+          'options:{responsive:true,interaction:{mode:"index",intersect:false},' +
+          'plugins:{legend:{position:"top"}},' +
+          'scales:{y:{min:0,max:100,ticks:{stepSize:20}}}}});' +
+          '}catch(e){}}' +
+          '(function(){var _s=window.show;window.show=function(id,btn){_s(id,btn);' +
+          'if(id==="retention")buildRetChart();};' +
+          'var _a=window.applyView;window.applyView=function(v){_a(v);buildRetChart();};})();' +
+          '<\/script>') : '') +
+        (opts.beforeBodyEnd || '') + '</body></html>';
     }
 
     return { build: build };
@@ -1506,27 +1603,141 @@ a.ns-cust:visited{color:inherit}
 </script>
 `;
 
+  var MIN_YEAR = 2025;          /* sales-order history starts here */
+  var TREND_START_YEAR = 2025;  /* first month plotted on the score trend */
+
   function todayLocal() {
     var n = new Date();
     return new Date(n.getFullYear(), n.getMonth(), n.getDate(), 0, 0, 0, 0);
   }
 
-  function dashboardHtml(nocache) {
-    var raw = RBData.assemble({
+  /* End of the selected month, never later than today. A future as-of would
+     just repeat today's figures under a misleading month label. */
+  function resolveAsOf(mo, yr, today) {
+    if (!mo || !yr) return { date: today, mo: today.getMonth() + 1, yr: today.getFullYear(), cur: true };
+    var m = parseInt(mo, 10), y = parseInt(yr, 10);
+    if (isNaN(m) || isNaN(y) || m < 1 || m > 12 || y < MIN_YEAR || y > today.getFullYear()) {
+      return { date: today, mo: today.getMonth() + 1, yr: today.getFullYear(), cur: true };
+    }
+    var end = new Date(y, m, 0);
+    var clamped = end > today;
+    return { date: clamped ? today : end, mo: m, yr: y, cur: clamped };
+  }
+
+  function filterBar(sel, today) {
+    var i, opts = '';
+    for (i = 0; i < 12; i++) {
+      opts += '<option value="' + (i + 1) + '"' + (sel.mo === i + 1 ? ' selected' : '') +
+              '>' + RBCore.MONTHS_LONG[i] + '</option>';
+    }
+    var yopts = '';
+    for (i = MIN_YEAR; i <= today.getFullYear(); i++) {
+      yopts += '<option value="' + i + '"' + (sel.yr === i ? ' selected' : '') + '>' + i + '</option>';
+    }
+    var note = sel.cur
+      ? 'showing today &mdash; ' + RBCore.MONTHS_LONG[today.getMonth()] + ' is still in progress'
+      : 'as of end of ' + RBCore.MONTHS_LONG[sel.mo - 1] + ' ' + sel.yr;
+    return '<div style="background:#fff;border-bottom:1px solid #e2ddd6;padding:9px 26px;' +
+      'display:flex;align-items:center;gap:9px;flex-wrap:wrap">' +
+      '<span style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;' +
+      'color:#9e9086">Period</span>' +
+      '<select id="rb-mo" style="padding:5px 9px;border:1px solid #e2ddd6;border-radius:7px;' +
+      'background:#fff;font-size:13px;font-weight:600;color:#1a1714;cursor:pointer">' + opts + '</select>' +
+      '<select id="rb-yr" style="padding:5px 9px;border:1px solid #e2ddd6;border-radius:7px;' +
+      'background:#fff;font-size:13px;font-weight:600;color:#1a1714;cursor:pointer">' + yopts + '</select>' +
+      '<button onclick="rbGo()" style="padding:5px 14px;border:0;border-radius:7px;background:#c8490c;' +
+      'color:#fff;font-size:13px;font-weight:700;cursor:pointer">Apply</button>' +
+      '<button onclick="rbNow()" style="padding:5px 12px;border:1px solid #e2ddd6;border-radius:7px;' +
+      'background:#fff;font-size:13px;cursor:pointer">Current</button>' +
+      '<span style="font-size:11.5px;color:#9e9086">' + note + '</span>' +
+      '<script>function rbUrl(){return new URL(window.location.href);}' +
+      'function rbGo(){var u=rbUrl();u.searchParams.set("mo",document.getElementById("rb-mo").value);' +
+      'u.searchParams.set("yr",document.getElementById("rb-yr").value);window.location.href=u.toString();}' +
+      'function rbNow(){var u=rbUrl();u.searchParams.delete("mo");u.searchParams.delete("yr");' +
+      'window.location.href=u.toString();}<\/script></div>';
+  }
+
+  /* Retention score at each month end, for every pod / rep view.
+     One analysis pass per month, so this is ~35x the cost of a normal render.
+     It is therefore cached and served from its own endpoint, fetched by the
+     browser only when someone actually opens the Retention Score tab. */
+  function buildTrend(raw, today) {
+    var labels = [], keys = [], series = {}, v;
+    for (var y = TREND_START_YEAR; y <= today.getFullYear(); y++) {
+      for (var m = 0; m < 12; m++) {
+        var end = new Date(y, m + 1, 0);
+        if (end > today) break;
+        var A = RBCore.analyse(raw, end);
+        labels.push(RBCore.MONTHS_SHORT[m] + " '" + String(y).slice(2));
+        keys.push(y + '-' + (m < 9 ? '0' : '') + (m + 1));
+        for (v in A.VIEW_AGG) {
+          if (!series[v]) series[v] = { composite: [], acct: [], rev: [] };
+          series[v].composite.push(A.VIEW_AGG[v].composite);
+          series[v].acct.push(A.VIEW_AGG[v].acct_pct);
+          series[v].rev.push(A.VIEW_AGG[v].rev_pct);
+        }
+        /* A view absent in an early month must not shift later points. */
+        for (v in series) {
+          while (series[v].composite.length < labels.length) {
+            series[v].composite.push(null); series[v].acct.push(null); series[v].rev.push(null);
+          }
+        }
+      }
+    }
+    return { labels: labels, keys: keys, series: series };
+  }
+
+  function trendJson(nocache) {
+    function run() {
+      var t0 = Date.now();
+      var raw = loadRaw(nocache);
+      var out = JSON.stringify(buildTrend(raw, todayLocal()));
+      log.audit({ title: 'trend computed', details: (Date.now() - t0) + 'ms' });
+      return out;
+    }
+    if (nocache) return run();
+    try {
+      var c = cache.getCache({ name: CACHE_NAME, scope: cache.Scope.PUBLIC });
+      /* Keyed on the current month: a new month invalidates it naturally. */
+      var t = todayLocal();
+      var key = 'trend_' + t.getFullYear() + '_' + (t.getMonth() + 1) + '_v1';
+      return c.get({ key: key, ttl: CACHE_TTL, loader: run });
+    } catch (e) {
+      log.error({ title: 'trend cache failed, computing direct', details: e });
+      return run();
+    }
+  }
+
+  function loadRaw(nocache) {
+    return RBData.assemble({
       orders:   fetchSet('orders',   RBData.SQL.orders,   nocache),
       invoices: fetchSet('invoices', RBData.SQL.invoices, nocache),
       task:     fetchSet('task',     RBData.SQL.task,     nocache),
       call:     fetchSet('call',     RBData.SQL.call,     nocache)
     });
+  }
+
+  function dashboardHtml(nocache, mo, yr) {
+    /* Queries pull full history and are cached; the period only changes how
+       that history is interpreted, so switching months costs no extra queries. */
+    var raw = loadRaw(nocache);
     var today = todayLocal();
-    var A = RBCore.analyse(raw, today);
+    var sel = resolveAsOf(mo, yr, today);
+    var asOf = sel.date;
+    var A = RBCore.analyse(raw, asOf);
     log.audit({ title: 'dashboard computed',
-                details: A.allCusts.length + ' customers, score ' + A.composite });
+                details: A.allCusts.length + ' customers, score ' + A.composite +
+                         ' (as of ' + RBCore.ymd(asOf) + ')' });
 
     return RBHtml.build(A, {
       head: '<script>' + CHARTJS + '<\/script>',
-      stamp: 'Data as of ' + RBCore.MONTHS_LONG[today.getMonth()] + ' ' +
-             today.getDate() + ', ' + today.getFullYear(),
+      stamp: sel.cur
+        ? 'Data as of ' + RBCore.MONTHS_LONG[asOf.getMonth()] + ' ' +
+          asOf.getDate() + ', ' + asOf.getFullYear()
+        : 'As of end of ' + RBCore.MONTHS_LONG[sel.mo - 1] + ' ' + sel.yr,
+      filterBar: filterBar(sel, today),
+      trendAsync: true,
+      trendKey: sel.yr + '-' + (sel.mo < 10 ? '0' : '') + sel.mo,
       beforeBodyEnd: '<script>window.NS_CUST=' + customerIdMap(nocache) + ';<\/script>' + LINKIFY
     });
   }
@@ -1539,9 +1750,20 @@ a.ns-cust:visited{color:inherit}
     var p = context.request.parameters || {};
     var nocache = String(p.nocache || '').toUpperCase() === 'T';
 
+    if (p.mode === 'trend') {
+      context.response.setHeader({ name: 'Content-Type', value: 'application/json; charset=utf-8' });
+      try {
+        context.response.write({ output: trendJson(nocache) });
+      } catch (e) {
+        log.error({ title: 'trend build failed', details: e });
+        context.response.write({ output: '{"labels":[],"keys":[],"series":{}}' });
+      }
+      return;
+    }
+
     context.response.setHeader({ name: 'Content-Type', value: 'text/html; charset=utf-8' });
     try {
-      context.response.write({ output: dashboardHtml(nocache) });
+      context.response.write({ output: dashboardHtml(nocache, p.mo, p.yr) });
     } catch (e) {
       log.error({ title: 'dashboard build failed', details: e });
       context.response.write({ output: '<!DOCTYPE html><html><body style="font-family:Georgia,serif;'
