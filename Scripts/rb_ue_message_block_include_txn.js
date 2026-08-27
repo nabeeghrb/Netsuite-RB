@@ -3,22 +3,18 @@
  * @NScriptType UserEventScript
  * @appliedtorecord message
  *
- * Forces "Include Transaction" OFF when the quote being emailed contains
- * specific items.
- *
- *   beforeLoad   - renders the checkbox unchecked (and disabled) so the user
- *                  can see what will actually happen
- *   beforeSubmit - backstop that enforces it at send time
+ * Defaults "Include Transaction" to unchecked when the quote being emailed
+ * contains specific items. The checkbox stays editable so a user can turn it
+ * back on deliberately, and whatever they leave on screen is what sends.
  */
-define(['N/search', 'N/ui/serverWidget', 'N/ui/message', 'N/runtime', 'N/log'],
-(search, serverWidget, message, runtime, log) => {
+define(['N/search', 'N/ui/message', 'N/runtime', 'N/log'],
+(search, message, runtime, log) => {
   'use strict';
 
   const ITEM_IDS_BLOCK_INCLUDE = ['38146'];
   const BANNER_TEXT = 'This quote contains an item that is not sent as a PDF. ' +
                       'The transaction will not be attached to this email.';
 
-  // ------------------------------------------------------------------
   function beforeLoad(context) {
     try {
       if (runtime.executionContext !== runtime.ContextType.USER_INTERFACE) return;
@@ -32,23 +28,19 @@ define(['N/search', 'N/ui/serverWidget', 'N/ui/message', 'N/runtime', 'N/log'],
 
       const form = context.form;
 
-      // Uncheck it visually.
+      // Uncheck by default, but leave the field fully editable.
       try {
         const fld = form.getField({ id: 'includetransaction' });
-        if (fld) {
-          fld.defaultValue = 'F';
-          // Grey it out so nobody re-checks it and expects an attachment.
-          fld.updateDisplayType({ displayType: serverWidget.FieldDisplayType.DISABLED });
-        }
+        if (fld) fld.defaultValue = 'F';
       } catch (e) {
-        log.debug({ title: 'could not adjust field', details: e.message });
+        log.debug({ title: 'could not set default', details: e.message });
       }
 
-      // Tell the user why.
+      // Explain why, and make clear it can be overridden.
       try {
         form.addPageInitMessage({
           type: message.Type.INFORMATION,
-          title: 'No transaction attachment',
+          title: 'Transaction not attached',
           message: BANNER_TEXT
         });
       } catch (e) {
@@ -60,25 +52,6 @@ define(['N/search', 'N/ui/serverWidget', 'N/ui/message', 'N/runtime', 'N/log'],
     }
   }
 
-  // ------------------------------------------------------------------
-  function beforeSubmit(context) {
-    try {
-      const rec = context.newRecord;
-      const txnId = rec.getValue({ fieldId: 'transaction' });
-      if (!txnId) return;
-      if (!quoteHasBlockedItem(txnId)) return;
-
-      rec.setValue({ fieldId: 'includetransaction', value: false });
-      log.audit({
-        title: 'Include Transaction disabled',
-        details: `Quote ${txnId}: includetransaction forced OFF`
-      });
-    } catch (e) {
-      log.error({ title: 'beforeSubmit failed', details: e });
-    }
-  }
-
-  // ------------------------------------------------------------------
   /**
    * At load time the record may not have the transaction populated yet,
    * so fall back to the URL parameters the email page was opened with.
@@ -118,5 +91,5 @@ define(['N/search', 'N/ui/serverWidget', 'N/ui/message', 'N/runtime', 'N/log'],
     }
   }
 
-  return { beforeLoad, beforeSubmit };
+  return { beforeLoad };
 });
