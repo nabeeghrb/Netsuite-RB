@@ -656,8 +656,9 @@ define(['N/query', 'N/runtime', 'N/log'], (query, runtime, log) => {
           <th class="n sortable" data-k="med" data-t="n">Medium</th>
           <th class="n sortable" data-k="neg" data-t="n">Negative</th>
           <th class="n sortable" data-k="act" data-t="n">Action open</th>
-          <th class="sortable" data-k="last" data-t="s">Last call</th>
+          <th class="sortable" data-k="last" data-t="s">Last risk call</th>
           <th>Open</th>
+          <th>Risk call</th>
         </tr></thead><tbody id="acct-body"></tbody></table>
       </div>
     </div>
@@ -1292,12 +1293,13 @@ function render(){
   q.filter(function(x){return x[6]>=2}).forEach(function(x){
     var key=x[15]||"(none)";
     if(!accs[key])accs[key]={key:key,name:x[16]||x[15]||"No customer linked",code:x[15]||"",
-      cid:x[14]||0,hi:0,med:0,neg:0,act:0,last:""};
+      cid:x[14]||0,hi:0,med:0,neg:0,act:0,last:"",lastId:0};
     var a=accs[key];
     if(x[6]===3)a.hi++; else a.med++;
     if(x[8]===3)a.neg++;
     if(x[5]>=1&&x[5]<=5)a.act++;
-    if(x[1]>a.last)a.last=x[1]});
+    // newest Medium/High risk call for the account; same-day ties go to the later call record
+    if(x[1]>a.last||(x[1]===a.last&&x[0]>a.lastId)){a.last=x[1];a.lastId=x[0]}});
   var accList=Object.keys(accs).map(function(k){return accs[k]});
   var linked=q.filter(function(x){return x[6]>=2&&x[14]}).length,
       unlinked=q.filter(function(x){return x[6]>=2&&!x[14]}).length;
@@ -1335,7 +1337,7 @@ function render(){
     nfmt(linked+unlinked)+" risk calls in this selection have no customer attached, and are grouped as "+
     "&ldquo;No customer linked&rdquo; below. Worth raising with Nabeegh alongside the opening-sentiment field.";
   var ab=document.getElementById("acct-body");ab.innerHTML="";
-  if(!accList.length)ab.innerHTML='<tr><td colspan="7" class="empty">Nothing in this selection.</td></tr>';
+  if(!accList.length)ab.innerHTML='<tr><td colspan="8" class="empty">Nothing in this selection.</td></tr>';
   var accShown=sortTable("acct-table",accList,"hi").slice(0,50);
   accShown.forEach(function(a){
     var tr=document.createElement("tr");
@@ -1346,10 +1348,11 @@ function render(){
       '<td class="n">'+(a.med||'<span class="muted">0</span>')+'</td>'+
       '<td class="n">'+(a.neg?'<b style="color:var(--crit)">'+a.neg+'</b>':'<span class="muted">0</span>')+'</td>'+
       '<td class="n">'+a.act+'</td><td class="lbl muted">'+a.last+'</td>'+
-      '<td>'+(a.cid?'<a href="'+NSCUST+a.cid+'" target="_blank" rel="noopener">account &#8599;</a>':'<span class="muted">&mdash;</span>')+'</td>';
+      '<td>'+(a.cid?'<a href="'+NSCUST+a.cid+'" target="_blank" rel="noopener">account &#8599;</a>':'<span class="muted">&mdash;</span>')+'</td>'+
+      '<td>'+(a.lastId?callLink(a.lastId):'<span class="muted">&mdash;</span>')+'</td>';
     ab.appendChild(tr)});
   if(accList.length>accShown.length){var atr=document.createElement("tr");
-    atr.innerHTML='<td colspan="7" class="muted" style="text-align:center;padding:14px">Showing the top '+
+    atr.innerHTML='<td colspan="8" class="muted" style="text-align:center;padding:14px">Showing the top '+
       accShown.length+' of '+nfmt(accList.length)+' accounts by the current sort. '+
       'Narrow with the filters above, or click a column to re-rank.</td>';
     ab.appendChild(atr)}
