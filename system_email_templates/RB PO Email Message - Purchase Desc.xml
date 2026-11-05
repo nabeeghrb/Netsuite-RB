@@ -1,0 +1,261 @@
+<?xml version="1.0"?><!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
+<pdf>
+<head>
+<link name="NotoSans" type="font" subtype="truetype" src="${nsfont.NotoSans_Regular}" src-bold="${nsfont.NotoSans_Bold}" src-italic="${nsfont.NotoSans_Italic}" src-bolditalic="${nsfont.NotoSans_BoldItalic}" bytes="2" />
+<#if .locale == "zh_CN">
+<link name="NotoSansCJKsc" type="font" subtype="opentype" src="${nsfont.NotoSansCJKsc_Regular}" src-bold="${nsfont.NotoSansCJKsc_Bold}" bytes="2" />
+<#elseif .locale == "zh_TW">
+<link name="NotoSansCJKtc" type="font" subtype="opentype" src="${nsfont.NotoSansCJKtc_Regular}" src-bold="${nsfont.NotoSansCJKtc_Bold}" bytes="2" />
+<#elseif .locale == "ja_JP">
+<link name="NotoSansCJKjp" type="font" subtype="opentype" src="${nsfont.NotoSansCJKjp_Regular}" src-bold="${nsfont.NotoSansCJKjp_Bold}" bytes="2" />
+<#elseif .locale == "ko_KR">
+<link name="NotoSansCJKkr" type="font" subtype="opentype" src="${nsfont.NotoSansCJKkr_Regular}" src-bold="${nsfont.NotoSansCJKkr_Bold}" bytes="2" />
+<#elseif .locale == "th_TH">
+<link name="NotoSansThai" type="font" subtype="opentype" src="${nsfont.NotoSansThai_Regular}" src-bold="${nsfont.NotoSansThai_Bold}" bytes="2" />
+</#if>
+<macrolist></macrolist>
+<style type="text/css">
+* {
+<#if .locale == "zh_CN">
+font-family: NotoSans, NotoSansCJKsc, sans-serif;
+<#elseif .locale == "zh_TW">
+font-family: NotoSans, NotoSansCJKtc, sans-serif;
+<#elseif .locale == "ja_JP">
+font-family: NotoSans, NotoSansCJKjp, sans-serif;
+<#elseif .locale == "ko_KR">
+font-family: NotoSans, NotoSansCJKkr, sans-serif;
+<#elseif .locale == "th_TH">
+font-family: NotoSans, NotoSansThai, sans-serif;
+<#else>
+font-family: NotoSans, sans-serif;
+</#if>
+}
+
+.main-container {
+width: 950px;
+margin: 0 auto;
+}
+
+table.width-controlled {
+width: 950px !important;
+margin: 0 auto;
+}
+</style>
+</head>
+<body header="nlheader" header-height="12%" footer="nlfooter" footer-height="20pt" padding="0" size="Letter">
+<div class="main-container">
+<!-- HEADER -->
+<table id="nlheader" class="width-controlled" align="center" style="font-size: 10pt;">
+<tbody>
+<tr>
+<td width=""> </td>
+</tr>
+<tr>
+<td align="center"><img src="https://888714.app.netsuite.com/core/media/media.nl?id=85432&c=888714&h=vx45izYbE3z0ZLBovy-0uBxWOUM9oiZisXN0sQGbeqEUODZw" /></td>
+</tr>
+<tr>
+<td width=""> </td>
+</tr>
+</tbody>
+</table>
+
+<!-- Transaction Type & Number -->
+<table style="background: white;" class="width-controlled" align="center">
+<tbody>
+<tr>
+<td> </td>
+</tr>
+<tr>
+<td style="color: rgb(45, 49, 66); font-weight: bold; font-size: 1.5em; text-transform: uppercase;" align="center">Purchase order</td>
+</tr>
+<tr>
+<td style="color: rgb(52, 81, 116); font-weight: bold; font-size: 1.5em;" align="center">#${transaction.tranid}</td>
+</tr>
+<tr>
+<td style="border-bottom: 0.05em solid rgb(220, 220, 220);"> </td>
+</tr>
+</tbody>
+</table>
+
+<!-- Opening Text -->
+<table style="font-size: 1em; background: white; color: rgb(45, 49, 66); font-family: Arial, Helvetica, sans-serif; font-weight: 100;" class="width-controlled" align="center">
+<tbody>
+<tr>
+<td width="25%"> </td>
+<td style="font-weight: 100;" align="center"><strong>VENDOR: </strong> ${transaction.entity},</td>
+<td width="25%"> </td>
+</tr>
+<tr>
+<td width="25%"> </td>
+<td style="font-weight: 200;" align="center"><span style="font-size: 16px;"><strong>NOTES: </strong>Please use attached packing slip. <br/><br/>
+${entity.custentity_rb_po_email_note}</span></td>
+<td width="25%"> </td>
+</tr>
+</tbody>
+</table>
+
+<!-- EMPTY TABLE removed data but table remains for structure -->
+<table style="background: white; font-size: 0.95em;" class="width-controlled" align="center">
+<tbody>
+<tr style="color: rgb(52, 81, 116); font-weight: bold; text-transform: uppercase;">
+<td width="1%"> </td>
+<td width="1%"> </td>
+<td width="1%"> </td>
+<td width="1%"> </td>
+</tr>
+</tbody>
+</table>
+
+<!-- Order Information table -->
+<table style="background: white;font-size: 0.95em;" class="width-controlled" align="center">
+<tbody>
+<tr style="color: rgb(52, 81, 116); font-weight: bold; text-transform: uppercase; ">
+<td align="center" width="35%">SHIP TO ADDRESS</td>
+<td align="center" width="20%">SHIP VIA</td>
+<td align="center" width="25%">SHIPPING ACCOUNT #</td>
+<td align="center" width="20%">DATE</td>
+</tr>
+<tr style="color: rgb(45, 49, 66); font-weight: lighter;">
+<td align="center" width="35%">${transaction.shipaddress}</td>
+<td align="center" width="20%">${transaction.shipmethod}</td>
+<td align="center" width="25%">${transaction.custbody_rb_shipping_acc}</td>
+<td align="center" width="20%">${transaction.trandate}</td>
+</tr>
+<tr>
+<td style="border-bottom: 0.05em solid rgb(220, 220, 220);" align="center" width="35%"> </td>
+<td style="border-bottom: 0.05em solid rgb(220, 220, 220);" align="center" width="20%"> </td>
+<td style="border-bottom: 0.05em solid rgb(220, 220, 220);" align="center" width="25%"> </td>
+<td style="border-bottom: 0.05em solid rgb(220, 220, 220);" align="center" width="20%"> </td>
+</tr>
+</tbody>
+</table>
+
+<!-- Items Table -->
+<table style="background: white;" class="width-controlled" align="center">
+<tbody>
+<tr style="color: rgb(72, 202, 228); font-weight: bold; font-size: 0.95em;">
+<td width="1%"> </td>
+<td width="1%"> </td>
+<td align="left"> </td>
+<td width="1%"> </td>
+<td width="1%"> </td>
+</tr>
+</tbody>
+</table>
+
+<#if transaction.item?has_content>
+<table class="width-controlled" style="margin-top: 10px;background: white;" align="center">
+<!-- start items -->
+<#list transaction.item as item>
+<#if item_index==0>
+<thead>
+<tr style="color: rgb(52, 81, 116); font-weight: bold;">
+<th align="right" width="3%"> </th>
+<th width="5%" align="center">QTY</th>
+<th width="10%" align="center">SKU</th>
+<!-- CUSTOM ORDER INFO -->
+<#if transaction.custbody_rb_custom_production?string=="Yes">
+<th width="12%" align="center">QUOTE#</th>
+<th width="35%" align="center">ART LINK</th>
+<th width="10%" align="center">OV/UN %</th>
+<#else>
+<th width="12%" align="center">VENDOR SKU</th>
+<th width="35%" align="center">NAME</th>
+<th width="10%" align="center">UOM</th>
+</#if>
+<th width="15%" align="right">RATE</th>
+<th width="20%" align="right">TOTAL</th>
+<th align="right" width="3%"> </th>
+</tr>
+</thead>
+</#if>
+<tbody>
+<tr style="color: black;">
+<td style="padding-bottom: 15px;" align="center" width="3%"> </td>
+<td style="padding-bottom: 15px;" width="5%" align="left">${item.quantity}</td>
+<td style="padding-bottom: 15px;" width="10%" align="left">${item.custcol_rb_itemsku}</td>
+<#if transaction.custbody_rb_custom_production?string=="Yes">
+<td style="padding-bottom: 15px;" width="12%" align="center">${item.custcol_rb_vendorquotenum}</td>
+<td style="padding-bottom: 15px;" width="35%" align="center"><a href="${item.custcol_rb_itemartlink}">${item.description}</a></td>
+<td style="padding-bottom: 15px;" width="10%" align="center">${item.custcol_rb_overunderpercentage}</td>
+<#else>
+<td style="padding-bottom: 15px;" width="12%" align="left">${item.vendorname}</td>
+<td style="padding-bottom: 15px;" width="35%" align="left">${item.description}</td>
+<td style="padding-bottom: 15px;" width="10%" align="center">${item.units}</td>
+</#if>
+<td style="padding-bottom: 15px;" width="15%" align="right">${item.rate}</td>
+<td style="padding-bottom: 15px;" width="20%" align="right">${item.amount}</td>
+<td style="padding-bottom: 15px;" align="center" width="3%"> </td>
+</tr>
+</tbody>
+</#list>
+<!-- end items -->
+</table>
+</#if>
+
+<!-- TOTALS -->
+<table class="width-controlled" style="margin-top: 10px;background: white;" cellpadding="3" align="center">
+<tbody>
+<tr style="color: black;">
+<td align="center" width="3%"> </td>
+<td width="84%" align="right" style="color: rgb(52, 81, 116); font-weight: bold;">Total:</td>
+<td width="10%" align="right">${transaction.total}</td>
+<td align="center" width="3%"> </td>
+</tr>
+</tbody>
+</table>
+
+<!-- Closing Text -->
+<table style="background: white; font-size: 0.9em;" class="width-controlled" align="center">
+<tbody>
+<tr>
+<td style="border-bottom: 0.05em solid rgb(220, 220, 220);" colspan="3" width="96%"> </td>
+</tr>
+</tbody>
+</table>
+
+<table style="background: white; font-size: 0.95em; color: black;" class="width-controlled" align="center">
+<tbody>
+<tr>
+<td width="1%"> </td>
+<td width=""> </td>
+<td width="1%"> </td>
+</tr>
+<tr>
+<td width="1%"> </td>
+<td align="center">
+<p style="text-decoration: none;font-size: 12pt;">Please email acknowledgment and tracking info to <span style="text-decoration: underline;"><strong><a style="text-decoration: underline; color: rgb(52, 81, 116);" href="mailto:purchasing@royalbag.com"><span style="font-size: 12pt;"><span style="color: rgb(35, 111, 161); text-decoration: underline;">purchasing@royalbag.com</span></span></a></strong></span></p>
+</td>
+<td width="1%"> </td>
+</tr>
+<tr>
+<td width="1%"> </td>
+<td width=""> </td>
+<td width="1%"> </td>
+</tr>
+</tbody>
+</table>
+
+<!-- Footer & Page Numbers -->
+<table style="background: rgb(52, 81, 116); color: white; text-align: center; margin-left: auto; margin-right: auto; font-size: 0.9em;" class="width-controlled" align="center">
+<tbody>
+<tr>
+<td style="padding: 0;" colspan="2" align="center"> </td>
+</tr>
+<tr>
+<td style="padding: 0;" colspan="2" align="center">Giant Plastic Industries </td>
+</tr>
+<tr>
+<td style="padding: 0;" colspan="2" align="center">718-686-1120 | purchasing@royalbag.com</td>
+</tr>
+<tr>
+<td style="padding: 0;" colspan="2" align="right"> </td>
+</tr>
+<tr>
+<td style="padding: 0;" colspan="2" align="center"> </td>
+</tr>
+</tbody>
+</table>
+</div>
+</body>
+</pdf>
