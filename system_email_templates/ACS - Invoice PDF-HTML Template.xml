@@ -1,6 +1,9 @@
 <?xml version="1.0"?><!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
 <pdf>
 <head>
+	<#-- DBA flag: sourced from customer field custentity_show_dba_on_invoice via transaction body field custbody_show_dba_on_invoice -->
+	<#assign dbaFlag = record.custbody_show_dba_on_invoice!false>
+	<#assign showDba = (dbaFlag?is_boolean && dbaFlag) || (dbaFlag?is_string && (dbaFlag == "T" || dbaFlag == "Yes" || dbaFlag == "true"))>
 	<link name="NotoSans" type="font" subtype="truetype" src="${nsfont.NotoSans_Regular}" src-bold="${nsfont.NotoSans_Bold}" src-italic="${nsfont.NotoSans_Italic}" src-bolditalic="${nsfont.NotoSans_BoldItalic}" bytes="2" />
 	<#if .locale == "zh_CN">
 		<link name="NotoSansCJKsc" type="font" subtype="opentype" src="${nsfont.NotoSansCJKsc_Regular}" src-bold="${nsfont.NotoSansCJKsc_Bold}" bytes="2" />
@@ -16,7 +19,10 @@
     <macrolist>
         <macro id="nlheader">
             <table class="header" style="width: 100%;"><tr>
-	<td rowspan="5" style="width:40%;"><#if companyInformation.logoUrl?length != 0><@filecabinet nstype="image" src="${companyInformation.logoUrl}" style="float: left; margin: 7px;width:250px;height:70px;" /> </#if></td>
+	<td rowspan="5" style="width:40%;">
+		<#if companyInformation.logoUrl?length != 0><@filecabinet nstype="image" src="${companyInformation.logoUrl}" style="margin: 7px 7px 0px 7px;width:250px;height:70px;" /></#if>
+		<#if showDba><p class="dba">dba of Giant Plastic Industries USA</p></#if>
+	</td>
 	<td rowspan="5" style="width:20%;border-left: 3px solid #c4c3c0;vertical-align: middle;padding-left:5px;">cs@royalbag.com<br />866-686-7401<br />www.royalbag.com</td>
 	<td align="right" style="width:40%;"><span class="title">${record@title}</span></td>
 	</tr>
@@ -74,6 +80,51 @@
             padding: 0px;
             font-size: 8pt;
         }
+        p.dba {
+            margin: 3px 7px 0px 7px;
+            padding: 0px;
+            width: 250px;
+            text-align: right;
+            align: right;
+            font-size: 8.5pt;
+            font-style: italic;
+            color: #666666;
+            letter-spacing: 0.3px;
+        }
+        td.payhead {
+            padding: 0px 0px 3px 0px;
+            font-size: 8pt;
+            font-weight: bold;
+            color: #666666;
+            letter-spacing: 0.8px;
+            border-bottom: 1px solid #d3d3d3;
+        }
+        td.paybody {
+            padding: 6px 0px 0px 0px;
+            font-size: 9pt;
+        }
+        table.totals td {
+            padding: 4px 6px;
+        }
+        td.totlabel {
+            align: right;
+            text-align: right;
+        }
+        td.totvalue {
+            align: right;
+            text-align: right;
+            width: 42%;
+        }
+        td.totrule {
+            border-top: 1px solid #c4c3c0;
+            padding-top: 7px;
+        }
+        td.balancedue {
+            background-color: #e3e3e3;
+            font-weight: bold;
+            font-size: 12pt;
+            padding: 7px 6px;
+        }
         table.itemtable th {
             padding-bottom: 10px;
             padding-top: 10px;
@@ -130,7 +181,7 @@
         }
 </style>
 </head>
-<body header="nlheader" header-height="10%" footer="nlfooter" footer-height="20pt" padding="0.5in 0.5in 0.5in 0.5in" size="Letter">
+<body header="nlheader" header-height="<#if showDba>12%<#else>10%</#if>" footer="nlfooter" footer-height="20pt" padding="0.5in 0.5in 0.5in 0.5in" size="Letter">
     <table style="width: 100%; margin-top: 10px;"></table>
 
 <table class="body" style="width: 100%; margin-top: 10px;"><tr>
@@ -166,45 +217,69 @@
 	</#list><!-- end items --></table>
 
 <hr /></#if>
+<#-- ===== Totals ===== -->
+<#assign acsTotalDue = record.amountremaining?replace("$", "")>
+<#assign acsTotalDue = acsTotalDue?replace(".", "")>
+<#assign discDigits = (record.discounttotal!"")?string?replace("[^0-9]", "", "r")>
+<#assign paidDigits = (record.amountpaid!"")?string?replace("[^0-9]", "", "r")>
+<#assign hasDiscount = discDigits?has_content && discDigits?number != 0>
+<#assign hasPayment = paidDigits?has_content && paidDigits?number != 0>
 <table class="total" style="width: 100%; margin-top: 10px;"><tr>
-  	<#assign acsTotalDue = record.amountremaining?replace("$", "")>
-    <#assign acsTotalDue = acsTotalDue?replace(".", "")>
-	<td colspan="4">&nbsp;</td>
-	<td align="right"><b>${record.subtotal@label}</b></td>
-	<td align="right"><b>${record.subtotal}</b></td>
-	</tr>
-	<tr>
-	<td colspan="4">&nbsp;</td>
-	<td align="right">Shipping:</td>
-	<td align="right">${record.shippingcost}</td>
-	</tr>
-      	<tr>
-	<td colspan="4">&nbsp;</td>
-	<td align="right">Discounts:</td>
-	<td align="right">${record.discounttotal}</td>
-	</tr>
-    <#if record.taxitem?contains('NY')>
-    	<tr>
-			<td colspan="4">&nbsp;</td>
-			<td align="right">NY Sales Tax:</td>
-			<td align="right">${record.taxtotal}</td>
-      	</tr>
-  	</#if>
-	<tr>
-	<td colspan="4">&nbsp;</td>
-	<td align="right"><b>Total Invoice:</b></td>
-	<td align="right"><b>${record.total}</b></td>
-	</tr>
-  	<tr>
-	<td colspan="4">&nbsp;</td>
-	<td align="right" style="font-size:9pt;">Payment applied:</td>
-	<td align="right">${record.amountpaid}</td>
-	</tr>
-    <tr>
-	<td colspan="4">&nbsp;</td>
-	<td align="right"><b>Total Due:</b></td>
-	<td align="right"><b>${record.amountremaining} </b></td>
-	</tr></table>
+	<td style="width: 54%; padding: 0px;">&nbsp;</td>
+	<#-- Right: totals -->
+	<td style="width: 46%; vertical-align: top; padding: 0px;">
+		<table class="totals" style="width: 100%;">
+		<tr>
+			<td class="totlabel">Subtotal</td>
+			<td class="totvalue">${record.subtotal}</td>
+		</tr>
+		<#if hasDiscount>
+		<tr>
+			<td class="totlabel">Discount</td>
+			<td class="totvalue">${record.discounttotal}</td>
+		</tr>
+		</#if>
+		<tr>
+			<td class="totlabel">Shipping</td>
+			<td class="totvalue">${record.shippingcost}</td>
+		</tr>
+		<#if record.taxitem?contains('NY')>
+		<tr>
+			<td class="totlabel">NY Sales Tax</td>
+			<td class="totvalue">${record.taxtotal}</td>
+		</tr>
+		</#if>
+		<tr>
+			<td class="totlabel totrule"><b>Invoice Total</b></td>
+			<td class="totvalue totrule"><b>${record.total}</b></td>
+		</tr>
+		<tr>
+			<td class="totlabel" style="font-size: 9pt;">Payments applied</td>
+			<td class="totvalue"><#if hasPayment>-</#if>${record.amountpaid}</td>
+		</tr>
+		<tr>
+			<td class="totlabel balancedue">Balance Due</td>
+			<td class="totvalue balancedue">${record.amountremaining}</td>
+		</tr>
+		</table>
+	</td>
+</tr>
+<#if record.custbody_rb_pay_method?has_content>
+<tr>
+	<#-- Payment details: starts where Balance Due ends -->
+	<td style="width: 54%; vertical-align: top; padding: 0px 20px 0px 0px;">
+	<#if record.custbody_rb_pay_method?has_content>
+		<table style="width: 100%;">
+		<tr><td class="payhead">PAYMENT DETAILS</td></tr>
+		<#if record.custbody_rb_pay_method?has_content>
+		<tr><td class="paybody">Paid by: ${record.custbody_rb_pay_method}</td></tr>
+		</#if>
+		</table>
+	</#if>
+	</td>
+	<td style="width: 46%; padding: 0px;">&nbsp;</td>
+</tr>
+</#if></table>
 <#if acsTotalDue = '000'>
   &nbsp;
 <#else>
@@ -215,6 +290,6 @@ Mail - Royal Bag Inc. 5501 New Utrecht Ave. Suite 501 Brooklyn NY 11219<br/><br/
 EFT - Routing: 021000021 Account 166176630. Please include Invoice# in payment reference and email remittance advice to billing@royalbag.com.
 </td></tr></table>
 </#if>
-<br/><br/><table style="width:100%"><tr><td align="center" style="font-size:16px;"><b>Thank you for your order. We appreciate your business!</b></td></tr></table>
+<br/><br/><br/><table style="width:100%"><tr><td align="center" style="font-size:16px;"><b>Thank you for your order. We appreciate your business!</b></td></tr></table>
 </body>
 </pdf>
