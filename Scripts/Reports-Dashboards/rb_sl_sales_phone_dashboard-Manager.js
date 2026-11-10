@@ -42,7 +42,7 @@ define(['N/query', 'N/runtime', 'N/log'],
             ['riki',  'Riki Friedman',     20],
             ['renee', 'Renee Goldenberg',  21],
         ],
-        MANAGER_IDS: [],                 // e.g. the sales manager's employee id
+        MANAGER_IDS: [7],                // 7 = Sara (sales manager) — sees the whole team
         FULL_VIEW_ROLES: [3],            // 3 = Administrator
     };
 

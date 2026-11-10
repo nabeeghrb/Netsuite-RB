@@ -2721,6 +2721,7 @@ function (query, search, runtime, cache, url, format, log) {
     var E = ENGINE, PAGE = PAGEMOD;      // bundled below this file by the build step
     var EASTERN = 'America/New_York';
     var DIRECTOR_DEFAULT = [7];          // Sara Ziegler
+    var ADMIN_DEFAULT = [546334];        // Nabeegh Ahmed -- used when custscript_rb_sc_admins is blank
 
     // ------------------------------------------------------------ SuiteQL
     // PAGINATION IS NOT OPTIONAL. message, transaction, customer and supportcase
@@ -3158,10 +3159,12 @@ function (query, search, runtime, cache, url, format, log) {
         if (req.method !== 'GET') { res.write(PAGE.message('Scorecard', 'Use GET.')); return; }
         var user = runtime.getCurrentUser();
         var script = runtime.getCurrentScript();
-        var admins = idList('custscript_rb_sc_admins', []);
+        var admins = idList('custscript_rb_sc_admins', ADMIN_DEFAULT);
         var directors = idList('custscript_rb_sc_directors', DIRECTOR_DEFAULT);
         var isAdmin = admins.indexOf(Number(user.id)) >= 0;
         var view = viewFor(user, req.parameters, isAdmin, directors);
+        // An admin who is not on the roster lands on the team view rather than an empty page.
+        if (!view && isAdmin) view = { kind: 'director', who: null };
 
         var bar = null;
         if (isAdmin) {

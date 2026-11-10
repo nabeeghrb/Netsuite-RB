@@ -10,7 +10,8 @@
  *   1. Upload this file to the File Cabinet (SuiteScripts/...).
  *   2. Customization ▸ Scripting ▸ Scripts ▸ New ▸ pick this file ▸ Create Script Record.
  *   3. Deploy it: Status = Released, Audience = the sales team + managers.
- *      Log Level = Audit is enough (timings and governance are logged per run).
+ *      Log Level = Audit (each stage logs its timing as it finishes — see the
+ *      Execution Log under 'Retention dashboard — stage').
  *   4. Open the deployment's URL. No parameters are needed.
  *
  * WHO SEES WHAT (see ACCESS below)
@@ -100,7 +101,13 @@ define(['N/query', 'N/runtime', 'N/format', 'N/url', 'N/log'], function (query, 
     // The AR / machine-noise filter. 2d and 2i MUST share it unchanged, or an account
     // reads "touched" on one tab and "no contact on record" on another.
     var AR = ""
-      + " AND (m.message IS NULL OR (m.message NOT LIKE '<?xml%' AND m.message NOT LIKE '%<!DOCTYPE pdf%'))"
+      // System-generated mail (shipping notices, order confirmations, transaction PDFs).
+      // The skill matched these on the email BODY ('<?xml' / '<!DOCTYPE pdf'); scanning
+      // every body took ~2.5 min per 1,000 rows and timed the Suitelet out. Their
+      // subjects are fixed templates, so they are matched on the subject instead.
+      + " AND NOT (m.incoming = 'F' AND (" + ['YOUR ROYALBAG ORDER%', 'ORDER CONFIRMATION FROM ROYALBAG%',
+          'ROYALBAG: SALES ORDER #%', 'ROYALBAG: INVOICE #%', 'YOUR PROFORMA%']
+          .map(function (w) { return SUBJ + " LIKE '" + w + "'"; }).join(' OR ') + "))"
       + " AND NOT (m.incoming = 'F' AND m.transaction IS NOT NULL AND m.hasattachment = 'T'"
       + "   AND " + SUBJ + " NOT LIKE 'RE:%' AND " + SUBJ + " NOT LIKE 'FW%')"
       + " AND " + SUBJ + " NOT LIKE 'AUTOMATIC REPLY%' AND " + SUBJ + " NOT LIKE 'OUT OF OFFICE%'"
@@ -2479,12 +2486,15 @@ define(['N/query', 'N/runtime', 'N/format', 'N/url', 'N/log'], function (query, 
 
 
   // ═══ NETSUITE PLUMBING ═══════════════════════════════════════════════════
+  // One execution when the result fits (runSuiteQL returns up to 5,000 rows); paging
+  // re-runs the whole query for every 1,000-row page, so it is only the fallback.
   function runAll(sql) {
+    var rs = query.runSuiteQL({ query: sql }).asMappedResults();
+    if (rs.length < 5000) return rs;
     var out = [];
     var pd = query.runSuiteQLPaged({ query: sql, pageSize: 1000 });
     pd.pageRanges.forEach(function (r) {
-      var page = pd.fetch({ index: r.index });
-      var rows = page.data.asMappedResults();
+      var rows = pd.fetch({ index: r.index }).data.asMappedResults();
       for (var i = 0; i < rows.length; i++) out.push(rows[i]);
     });
     return out;
@@ -2612,7 +2622,11 @@ define(['N/query', 'N/runtime', 'N/format', 'N/url', 'N/log'], function (query, 
       var Q = rbQueries(ids, clock.today, addDaysYMD(clock.today, -TOUCH_WINDOW_DAYS));
       var R = {};
       ['employees', 'orders', 'invoices', 'items', 'contacts', 'activity', 'reptasks', 'touchtasks', 'touchmsgs'].forEach(function (k) {
-        var t = Date.now(); R[k] = runAll(Q[k]); timings.push(k + ' ' + R[k].length + ' rows ' + (Date.now() - t) + 'ms');
+        var t = Date.now(); R[k] = runAll(Q[k]);
+        timings.push(k + ' ' + R[k].length + ' rows ' + (Date.now() - t) + 'ms');
+        // logged per stage, so a load that times out still shows how far it got
+        log.audit({ title: 'Retention dashboard — stage', details: 'view=' + v.key + ' ' + timings[timings.length - 1]
+          + ' (elapsed ' + (Date.now() - t0) + 'ms, units left ' + runtime.getCurrentScript().getRemainingUsage() + ')' });
       });
       // A pull that returns no transactions at all is a connector/permission problem, not
       // an empty book — never render a normal-looking empty dashboard (skill guardrail).
@@ -2630,6 +2644,7 @@ define(['N/query', 'N/runtime', 'N/format', 'N/url', 'N/log'], function (query, 
         initialScope: v.initialScope, webFonts: WEB_FONTS, hideRepFilter: v.key === 'rep', banner: viewBar(v),
         generatedLabel: 'Live &middot; ' + htmlEsc(clock.label || clock.today) });
       timings.push('engine ' + (Date.now() - t1) + 'ms');
+      log.audit({ title: 'Retention dashboard — stage', details: 'view=' + v.key + ' engine ' + (Date.now() - t1) + 'ms, html ' + out.html.length + ' chars' });
       writeBig(context.response, out.html);
       log.audit({ title: 'Retention dashboard served', details: 'view=' + v.key + (v.key === 'rep' ? ':' + v.label : '')
         + ' user=' + user.id + ' today=' + clock.today + ' score=' + out.stats.composite + ' customers=' + out.stats.customers
