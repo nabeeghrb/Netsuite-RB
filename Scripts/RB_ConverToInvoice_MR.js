@@ -6,8 +6,11 @@
  * - Prepaid customers now receive invoice emails (prepaid-terms exclusion removed).
  * - "Do Not Email" customers are now invoiced, but no email is sent.
  *   (Moved from a search filter to the email condition.)
+ * - Pay Method (custbody_rb_pay_method) is now filled in as soon as the invoice is created,
+ *   from any deposit/payment already applied, so the emailed PDF shows "Paid by".
+ *   Requires rb_pay_method_lib.js in the same File Cabinet folder as this script.
  */
-define(['N/record', 'N/search', 'N/render', 'N/email', 'N/runtime'], function (record, search, render, email, runtime) {
+define(['N/record', 'N/search', 'N/render', 'N/email', 'N/runtime', './rb_pay_method_lib'], function (record, search, render, email, runtime, payMethodLib) {
 
     function getInputData() {
 
@@ -61,6 +64,15 @@ define(['N/record', 'N/search', 'N/render', 'N/email', 'N/runtime'], function (r
             });
 
             const invoiceId = invoiceRecord.save();
+
+            // Fill in Pay Method from deposits/payments NetSuite applied on save.
+            // Runs before the PDF is rendered so the email attachment includes "Paid by".
+            // A failure here is logged but never blocks the email.
+            try {
+                payMethodLib.syncInvoice(invoiceId);
+            } catch (payMethodError) {
+                log.error('Could not set pay method on invoice ' + invoiceId, payMethodError);
+            }
 
             const customerTerms = customerLookup.terms[0]?.value;
             const autoEmailInv = customerLookup.custentity_rb_auto_email_inv;

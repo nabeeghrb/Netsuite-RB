@@ -11,6 +11,8 @@
  *   - SO ship method contains "UPS"   -> SO custbody_rb_default_ups_acc,   else 5R9E53
  *   - SO ship method contains "FedEx" -> SO custbody_rb_default_ferdex_acc, else 264596823
  *   - Any other ship method (or one naming both carriers) -> left blank
+ *   - SO shipping cost > 0 -> customer account is NOT copied; the fallback above is used.
+ *     SO shipping cost 0 or blank -> customer account rules above apply.
  *
  * Two paths:
  *   1. beforeLoad - user clicks "Drop Ship" on an SO line and the PO form opens:
@@ -88,13 +90,12 @@ define(['N/record', 'N/log', 'N/runtime', 'N/ui/serverWidget'], (record, log, ru
                 return;
             }
 
-            const soAccount = String(so.getValue({ fieldId: carrier.soField }) || '').trim();
-            const account = soAccount || carrier.fallback;
-            poRec.setValue({ fieldId: PO_FIELD, value: account });
+            const choice = chooseAccount(so, carrier);
+            poRec.setValue({ fieldId: PO_FIELD, value: choice.account });
 
             log.audit('Shipping account pre-filled',
                 `New drop ship PO form (SO ${soId}): ${shipMethod} -> ${carrier.name} ` +
-                `${soAccount ? 'customer default from SO' : 'house fallback'} (${account})`);
+                `${choice.source} (${choice.account})`);
         } catch (e) {
             // Never block the form from opening; afterSubmit still covers the PO if the flag wasn't added
             log.error('PO shipping account error',
@@ -143,24 +144,39 @@ define(['N/record', 'N/log', 'N/runtime', 'N/ui/serverWidget'], (record, log, ru
                 return;
             }
 
-            const soAccount = String(so.getValue({ fieldId: carrier.soField }) || '').trim();
-            const account = soAccount || carrier.fallback;
+            const choice = chooseAccount(so, carrier);
 
             record.submitFields({
                 type: record.Type.PURCHASE_ORDER,
                 id: poId,
-                values: { [PO_FIELD]: account },
+                values: { [PO_FIELD]: choice.account },
                 options: { enableSourcing: false, ignoreMandatoryFields: true }
             });
 
             log.audit('Shipping account set',
                 `PO ${poId} (SO ${soId}, ${ctx}): ${shipMethod} -> ${carrier.name} ` +
-                `${soAccount ? 'customer default from SO' : 'house fallback'} (${account})`);
+                `${choice.source} (${choice.account})`);
         } catch (e) {
             log.error('PO shipping account error',
                 `PO ${poId} (${ctx}): ${e.name} - ${e.message}` +
                 (e.stack ? ` | ${String(e.stack).substring(0, 1500)}` : ''));
         }
+    };
+
+    /**
+     * Picks the account for the PO. Returns { account, source }.
+     * - SO shipping cost > 0 (customer is paying us for shipping) -> house fallback account.
+     * - SO shipping cost 0 or blank -> customer's default account from the SO, else house fallback.
+     */
+    const chooseAccount = (so, carrier) => {
+        const shippingCost = parseFloat(so.getValue({ fieldId: 'shippingcost' })) || 0;
+        if (shippingCost > 0) {
+            return { account: carrier.fallback, source: `house fallback, SO shipping cost ${shippingCost} > 0` };
+        }
+        const soAccount = String(so.getValue({ fieldId: carrier.soField }) || '').trim();
+        return soAccount
+            ? { account: soAccount, source: 'customer default from SO' }
+            : { account: carrier.fallback, source: 'house fallback, no customer default on SO' };
     };
 
     /** Returns the carrier config, or null if neither / both carriers match. */
