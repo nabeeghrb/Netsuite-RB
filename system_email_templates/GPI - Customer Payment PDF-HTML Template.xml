@@ -1,0 +1,266 @@
+<?xml version="1.0"?><!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
+<pdf>
+<#-- Royal Bag - Customer Payment Receipt
+     Requires UE script rb_ue_payment_receipt_print.js (supplies record.custpage_rb_*). -->
+
+<#assign rbPhone   = "718-686-1120">
+<#assign rbWebsite = "www.royalbag.com">
+<#assign rbLogoUrl = "https://888714.app.netsuite.com/core/media/media.nl?id=85432&amp;c=888714&amp;h=vx45izYbE3z0ZLBovy-0uBxWOUM9oiZisXN0sQGbeqEUODZw">
+
+<#-- Received From -->
+<#assign billTo = "">
+<#if record.custpage_rb_billto?has_content>
+  <#assign billTo = record.custpage_rb_billto>
+<#elseif (record.billaddress!"")?has_content>
+  <#assign billTo = record.billaddress>
+<#else>
+  <#assign billTo = record.customer!"">
+</#if>
+
+<#-- SO / PO / balance per invoice from the script -->
+<#assign lineMap = {}>
+<#if record.custpage_rb_lines?has_content>
+  <#attempt>
+    <#assign lineMap = record.custpage_rb_lines?eval>
+  <#recover>
+    <#assign lineMap = {}>
+  </#attempt>
+</#if>
+
+<#assign isCard = record.custpage_rb_cardlast4?has_content>
+
+<#-- Applied lines + whether any carry a discount -->
+<#assign hasDisc = false>
+<#assign invCount = 0>
+<#list record.apply as a>
+  <#if (a.apply?is_boolean && a.apply) || (a.apply?is_string && a.apply == "T")>
+    <#assign invCount = invCount + 1>
+    <#if (a.disc!"")?has_content && (a.disc?string)?matches(".*[1-9].*")><#assign hasDisc = true></#if>
+  </#if>
+</#list>
+
+<#-- Payment method label: show "Credit Card (external)" as plain "Credit Card" -->
+<#assign pmRaw = "${record.paymentmethod!''}">
+<#if pmRaw == "Credit Card (external)">
+  <#assign pmLabel = "Credit Card">
+<#else>
+  <#assign pmLabel = pmRaw>
+</#if>
+
+<#-- Ref. Number (custbody2): check # for Check, bank reference for EFT -->
+<#assign isCheck = (pmRaw == "Check")>
+<#assign isEft = (pmRaw == "EFT")>
+<#assign checkRef = "">
+<#if isCheck || isEft>
+  <#if (record.custbody2!"")?has_content>
+    <#assign checkRef = "${record.custbody2}">
+  <#elseif isCheck && (record.checknum!"")?has_content>
+    <#assign checkRef = "${record.checknum}">
+  </#if>
+</#if>
+<#if isCheck><#assign refLabel = "Check #"><#else><#assign refLabel = "EFT ref. #"></#if>
+
+<#-- "Paid on ... by ..." sentence -->
+<#if isCard>
+  <#assign paidBy = "${record.custpage_rb_cardbrand!'Card'} ending in ${record.custpage_rb_cardlast4}">
+<#elseif isCheck && checkRef?has_content>
+  <#assign paidBy = "Check #${checkRef}">
+<#elseif isEft && checkRef?has_content>
+  <#assign paidBy = "EFT (ref. ${checkRef})">
+<#else>
+  <#assign paidBy = pmLabel>
+</#if>
+
+<head>
+  <link name="NotoSans" type="font" subtype="truetype" src="${nsfont.NotoSans_Regular}" src-bold="${nsfont.NotoSans_Bold}" src-italic="${nsfont.NotoSans_Italic}" src-bolditalic="${nsfont.NotoSans_BoldItalic}" bytes="2" />
+  <macrolist>
+    <macro id="nlfooter">
+      <table style="width:100%; border-top:0.5px solid #dcdcdc;">
+        <tr>
+          <td style="text-align:left; font-size:7.5pt; color:#6b7280; padding-top:5px;">This is a receipt for payment received. It is not an invoice.</td>
+          <td style="text-align:right; font-size:7.5pt; color:#6b7280; padding-top:5px;" align="right">Page <pagenumber/> of <totalpages/></td>
+        </tr>
+      </table>
+    </macro>
+  </macrolist>
+  <style type="text/css">
+    * { font-family: NotoSans, sans-serif; }
+    body { font-size: 9pt; color: #2D3142; }
+    table { width: 100%; border-collapse: collapse; }
+    td, th, p { text-align: left; }
+    td { padding: 0; vertical-align: top; }
+    p { margin: 0; }
+    .num { text-align: right; }
+    .h2 { font-size: 9pt; font-weight: bold; color: #345174; padding-bottom: 4px; }
+    .k { color: #6b7280; padding: 2px 10px 2px 0; }
+    .v { padding: 2px 0; }
+    th { font-size: 8pt; font-weight: bold; color: #345174; background-color: #f2f5f9; padding: 6px 5px; border-bottom: 0.5px solid #c9d3df; }
+    td.c { padding: 7px 5px; border-bottom: 0.5px solid #e5e7eb; }
+  </style>
+</head>
+
+<body footer="nlfooter" footer-height="24pt" padding="0.5in 0.5in 0.4in 0.5in" size="Letter">
+
+  <!-- ===== Header ===== -->
+  <table>
+    <tr>
+      <td style="width:55%;">
+        <img src="${rbLogoUrl}" style="width:170px; height:auto;" />
+        <p style="margin-top:8px; font-size:8.5pt; line-height:135%; color:#4b5563;">
+          ${companyInformation.mainaddress_text}<br />
+          ${rbPhone} &nbsp;|&nbsp; ${rbWebsite}
+        </p>
+      </td>
+      <td style="width:45%;">
+        <p style="text-align:right; font-size:18pt; font-weight:bold; color:#345174;">Payment Receipt</p>
+        <table style="margin-top:6px;">
+          <tr><td class="k" style="width:55%; text-align:right;">Receipt #</td><td class="v num" style="font-weight:bold;">${record.tranid}</td></tr>
+          <tr><td class="k" style="text-align:right;">Payment date</td><td class="v num">${record.trandate}</td></tr>
+          <#if record.custpage_rb_custno?has_content>
+          <tr><td class="k" style="text-align:right;">Customer #</td><td class="v num">${record.custpage_rb_custno}</td></tr>
+          </#if>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ===== Amount paid summary ===== -->
+  <table style="margin-top:18px; background-color:#f2f5f9; border-left:3px solid #345174;">
+    <tr>
+      <td style="width:50%; padding:10px 12px;">
+        <p style="font-size:8.5pt; color:#6b7280;">Amount paid</p>
+        <p style="font-size:20pt; font-weight:bold; color:#2D3142;">${record.payment}</p>
+      </td>
+      <td style="width:50%; padding:10px 12px; vertical-align:middle;">
+        <p style="text-align:right;">Paid on ${record.trandate}</p>
+        <p style="text-align:right;">by ${paidBy}</p>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ===== Received from / Payment details ===== -->
+  <table style="margin-top:18px;">
+    <tr>
+      <td style="width:50%; padding-right:20px;">
+        <p class="h2">Received from</p>
+        <p style="line-height:135%;">${billTo}</p>
+      </td>
+      <td style="width:50%;">
+        <p class="h2">Payment details</p>
+        <table>
+          <tr><td class="k" style="width:42%;">Method</td><td class="v">${pmLabel}</td></tr>
+          <#if isCard>
+          <tr><td class="k">Card</td><td class="v">${record.custpage_rb_cardbrand!"Card"} ending in ${record.custpage_rb_cardlast4}</td></tr>
+          </#if>
+          <#if record.custpage_rb_solaref?has_content>
+          <tr><td class="k">Transaction ref.</td><td class="v">${record.custpage_rb_solaref}</td></tr>
+          </#if>
+          <#if checkRef?has_content>
+          <tr><td class="k">${refLabel}</td><td class="v">${checkRef}</td></tr>
+          </#if>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ===== Invoices paid ===== -->
+  <p class="h2" style="margin-top:20px;">Payment applied to</p>
+  <table>
+    <thead>
+      <tr>
+        <#if hasDisc>
+        <th style="width:15%;">Invoice #</th>
+        <th style="width:12%;">Invoice date</th>
+        <th style="width:11%;">Sales order</th>
+        <th style="width:12%;">Your PO #</th>
+        <th class="num" style="width:13%;" align="right">Invoice total</th>
+        <th class="num" style="width:10%;" align="right">Discount</th>
+        <th class="num" style="width:13%;" align="right">Amount paid</th>
+        <th class="num" style="width:14%;" align="right">Balance due</th>
+        <#else>
+        <th style="width:17%;">Invoice #</th>
+        <th style="width:13%;">Invoice date</th>
+        <th style="width:12%;">Sales order</th>
+        <th style="width:14%;">Your PO #</th>
+        <th class="num" style="width:14%;" align="right">Invoice total</th>
+        <th class="num" style="width:15%;" align="right">Amount paid</th>
+        <th class="num" style="width:15%;" align="right">Balance due</th>
+        </#if>
+      </tr>
+    </thead>
+    <#list record.apply as apply>
+      <#if (apply.apply?is_boolean && apply.apply) || (apply.apply?is_string && apply.apply == "T")>
+        <#assign ref = lineMap[apply.refnum!""]!{}>
+        <tr>
+          <td class="c">${apply.refnum}</td>
+          <td class="c">${apply.applydate}</td>
+          <td class="c">${ref.so!""}</td>
+          <td class="c">${ref.po!""}</td>
+          <td class="c num" align="right">${apply.total}</td>
+          <#if hasDisc><td class="c num" align="right">${apply.disc!""}</td></#if>
+          <td class="c num" align="right">${apply.amount}</td>
+          <td class="c num" align="right">
+            <#if (ref.paid!"") == "Y"><span style="color:#2f7a3b;">Paid in full</span><#else>${ref.bal!apply.due}</#if>
+          </td>
+        </tr>
+      </#if>
+    </#list>
+  </table>
+
+  <#-- Credits applied alongside the payment, if any -->
+  <#assign anyCredit = false>
+  <#if record.credit?has_content>
+    <#list record.credit as cr>
+      <#if (cr.apply?is_boolean && cr.apply) || (cr.apply?is_string && cr.apply == "T")><#assign anyCredit = true></#if>
+    </#list>
+  </#if>
+  <#if anyCredit>
+  <p class="h2" style="margin-top:16px;">Credits applied</p>
+  <table>
+    <thead><tr>
+      <th style="width:30%;">Credit #</th>
+      <th style="width:40%;">Date</th>
+      <th class="num" style="width:30%;" align="right">Amount</th>
+    </tr></thead>
+    <#list record.credit as cr>
+      <#if (cr.apply?is_boolean && cr.apply) || (cr.apply?is_string && cr.apply == "T")>
+      <tr>
+        <td class="c">${cr.refnum!""}</td>
+        <td class="c">${cr.creditdate!""}</td>
+        <td class="c num" align="right">${cr.amount}</td>
+      </tr>
+      </#if>
+    </#list>
+  </table>
+  </#if>
+
+  <!-- ===== Totals ===== -->
+  <table style="margin-top:12px; page-break-inside:avoid;">
+    <tr>
+      <td style="width:58%;"></td>
+      <td style="width:42%;">
+        <table>
+          <tr><td class="k" style="width:60%;">Applied to ${invCount} invoice<#if invCount != 1>s</#if></td><td class="v num">${record.applied}</td></tr>
+          <#if record.unapplied?has_content && (record.unapplied?string)?matches(".*[1-9].*")>
+          <tr><td class="k">Credit on account</td><td class="v num">${record.unapplied}</td></tr>
+          </#if>
+          <tr>
+            <td style="padding:6px 0 0 0; border-top:0.5px solid #c9d3df; font-weight:bold; font-size:10.5pt;">Total payment</td>
+            <td class="num" style="padding:6px 0 0 0; border-top:0.5px solid #c9d3df; font-weight:bold; font-size:10.5pt;">${record.payment}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <!-- ===== Closing ===== -->
+  <table style="margin-top:28px;">
+    <tr><td style="font-size:8.5pt; color:#4b5563; line-height:140%;">
+      <p style="font-weight:bold; color:#2D3142;">Thank you for your payment.</p>
+      <#if isCard><p>The charge appears on your card statement from Royal Bag. Use the transaction ref. above to match it.</p></#if>
+      <p>Questions about this receipt? Call ${rbPhone} or visit ${rbWebsite}.</p>
+    </td></tr>
+  </table>
+
+</body>
+</pdf>
